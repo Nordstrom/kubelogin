@@ -1,59 +1,66 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"net"
+	"log"
+	"net/http"
 )
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	/*
+	   dictates where the request should go
+	*/
+	if r.URL.Path != "/" {
+		http.Error(w, "404 not found", http.StatusNotFound)
+		return
+	}
+
+	switch r.Method {
+	case "GET":
+		getHandler(w, r)
+	case "POST":
+		postHandler(w, r)
+	default:
+		fmt.Fprintf(w, "Only GET and POST methods are supported")
+	}
+}
+
+func getHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "hoopla")
+}
+
+func postHandler(w http.ResponseWriter, r *http.Request) {
+	/*
+	   this is only for the specific example i found online. once i know what each method needs to do this will be changed
+	*/
+	if err := r.ParseForm(); err != nil {
+		fmt.Fprintf(w, "Hello, POST method. Parseform() err: %v", err)
+		return
+	}
+	switch r.FormValue("post_from") {
+	case "web":
+		fmt.Fprintf(w, "Post from website! r.PostFrom = %v\n", r.PostForm)
+		s := r.FormValue("key")
+		fmt.Fprintf(w, "key = %s, len = %v\n", s, r.PostForm)
+
+	case "client":
+		fmt.Fprintf(w, "Post from client! r.PostForm = %v\n", r.PostForm)
+	default:
+		fmt.Fprint(w, "Unkown Post source :( \n")
+	}
+}
 
 func main() {
 	/*
-	   Currently listening on localhost. This needs to be changed upon deployment.
-	   If it cannot listen to the server given it will print an error but should it close
-	   the listener? Currently runs forever unless a ctrl-c interrupt is given
+	   sets up a new mux. the default handler at root is handler and if there's an, log it
 	*/
-
-	fmt.Println("launching server...")
-	ln, err := net.Listen("tcp", "localhost:8000")
-	if err != nil {
-		fmt.Println("Error:", err.Error())
-	}
-	defer ln.Close()
-
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			/*
-			   if there is an error accepting the connection, close it.
-			   but this should keep the server running. previous code had the
-			   server quitting upon an error accepting a connection
-			*/
-			fmt.Println("Error:", err.Error())
-			conn.Close()
-		}
-		go handleRequest(conn)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", handler)
+	if err := http.ListenAndServe(":8000", mux); err != nil {
+		log.Fatal(err)
 	}
 }
 
-func handleRequest(conn net.Conn) {
-	message, err := bufio.NewReader(conn).ReadString('\n')
-	if err != nil {
-		/*
-		   if there is an error reading from the client,
-		   log the error to the server then write the error back to the client
-		   and close the connection
-		*/
-		fmt.Println("Error reading:", err.Error())
-		conn.Write([]byte("Error reading: " + err.Error() + "\n"))
-		conn.Close()
-	}
-	fmt.Println("Message received from client: ", (message))
-	authorizedMessage := authorize(message)
-	conn.Write([]byte(authorizedMessage + "\n"))
-	conn.Close()
-}
-
-func authorize(clusterName string) string {
-	//talk with authorization server TBI
-	return clusterName
-}
+var htmlStr = `
+html stuff
+`
