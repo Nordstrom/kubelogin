@@ -31,10 +31,21 @@ func TestSpecs(t *testing.T) {
 
 			So(result, ShouldEqual, "myclient,8000")
 		})
-		Convey("If the ID or port are missing the cliPostHandler should return a 400 error", func() {
+		Convey("If the port is missing the cliPostHandler should return a 400 error", func() {
 			values := url.Values{}
 			values.Set("clientID", "myclient")
 			values.Set("portNum", "")
+			encode := values.Encode()
+			resp, _ := http.Post(cliPostTestServer.URL, "application/x-www-form-urlencoded", strings.NewReader(encode))
+			b, _ := ioutil.ReadAll(resp.Body)
+			result := string(b)
+
+			So(result, ShouldEqual, "400 Bad request")
+		})
+		Convey("If the ID is missing the cliPostHandler should return a 400 error", func() {
+			values := url.Values{}
+			values.Set("clientID", "")
+			values.Set("portNum", "8000")
 			encode := values.Encode()
 			resp, _ := http.Post(cliPostTestServer.URL, "application/x-www-form-urlencoded", strings.NewReader(encode))
 			b, _ := ioutil.ReadAll(resp.Body)
@@ -47,11 +58,14 @@ func TestSpecs(t *testing.T) {
 			So(response, ShouldEqual, true)
 		})
 		Convey("If the clientID does not exist, return 404 error", func() {
-			response := verifyID("notmyclient")
-			var err string
-			if !response {
-				err = "404 Not found"
-			}
+			values := url.Values{}
+			values.Set("clientID", "wrongclient")
+			values.Set("portNum", "8000")
+			encode := values.Encode()
+			resp, _ := http.Post(cliPostTestServer.URL, "application/x-www-form-urlencoded", strings.NewReader(encode))
+			b, _ := ioutil.ReadAll(resp.Body)
+			err := string(b)
+
 			So(err, ShouldEqual, "404 Not found")
 		})
 		/*Convey("The server should keep a map of clientID's to secrets for later validation", func() {
