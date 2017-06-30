@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
 	"net/http"
@@ -11,63 +12,35 @@ import (
 )
 
 func TestSpecs(t *testing.T) {
-	Convey("Kubelogin Server Tests", t, func() {
-		responseTestServer := httptest.NewServer(http.HandlerFunc(handler))
-		cliPostTestServer := httptest.NewServer(http.HandlerFunc(cliPostHandler))
+	Convey("Kubelogin Server", t, func() {
+		responseTestServer := httptest.NewServer(http.HandlerFunc(responseHandler))
+		cliGetTestServer := httptest.NewServer(http.HandlerFunc(cliGetHandler))
 		authPostTestServer := httptest.NewServer(http.HandlerFunc(authPostHandler))
 		authPostJwtTestServer := httptest.NewServer(http.HandlerFunc(authPostJwtHandler))
-		Convey("The server should get a 200 response", func() {
+		Convey("The server should get a 200 response upon a successful URL", func() {
 			response, _ := http.Get(responseTestServer.URL)
 			So(response.StatusCode, ShouldEqual, 200)
 		})
-		Convey("The cliPostHandler should receive clientID and port from the CLI", func() {
-			values := url.Values{}
-			values.Set("clientID", "myclient")
-			values.Set("portNum", "8000")
-			encode := values.Encode()
-			resp, _ := http.Post(cliPostTestServer.URL, "application/x-www-form-urlencoded", strings.NewReader(encode))
-			b, _ := ioutil.ReadAll(resp.Body)
-			result := string(b)
-
-			So(result, ShouldEqual, "myclient,8000")
+		Convey("The cliGetHandler should receive clientID and port from the CLI", func() {
+			url := cliGetTestServer.URL + "/login/auth?clientID=myclient&port=8000"
+			resp, _ := http.Get(url)
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(resp.Body)
+			s := buf.String()
+			resp.Body.Close()
+			So(s, ShouldEqual, "myclient,8000")
 		})
 		Convey("If the port is missing the cliPostHandler should return a 400 error", func() {
-			values := url.Values{}
-			values.Set("clientID", "myclient")
-			values.Set("portNum", "")
-			encode := values.Encode()
-			resp, _ := http.Post(cliPostTestServer.URL, "application/x-www-form-urlencoded", strings.NewReader(encode))
-			b, _ := ioutil.ReadAll(resp.Body)
-			result := string(b)
+			url := cliGetTestServer.URL + "/login/auth?clientID=myclient&port="
+			resp, _ := http.Get(url)
+			So(resp.StatusCode, ShouldEqual, 400)
+		})
+		Convey("If the ID is missing the cliGetHandler should return a 400 error", func() {
+			url := cliGetTestServer.URL + "/login/auth?clientID=&port=8000"
+			resp, _ := http.Get(url)
+			So(resp.StatusCode, ShouldEqual, 400)
+		})
 
-			So(result, ShouldEqual, "400 Bad request")
-		})
-		Convey("If the ID is missing the cliPostHandler should return a 400 error", func() {
-			values := url.Values{}
-			values.Set("clientID", "")
-			values.Set("portNum", "8000")
-			encode := values.Encode()
-			resp, _ := http.Post(cliPostTestServer.URL, "application/x-www-form-urlencoded", strings.NewReader(encode))
-			b, _ := ioutil.ReadAll(resp.Body)
-			result := string(b)
-
-			So(result, ShouldEqual, "400 Bad request")
-		})
-		Convey("Once the clientID is received, should verify if it exists", func() {
-			response := verifyID("myclient")
-			So(response, ShouldEqual, true)
-		})
-		Convey("If the clientID does not exist, return 404 error", func() {
-			values := url.Values{}
-			values.Set("clientID", "wrongclient")
-			values.Set("portNum", "8000")
-			encode := values.Encode()
-			resp, _ := http.Post(cliPostTestServer.URL, "application/x-www-form-urlencoded", strings.NewReader(encode))
-			b, _ := ioutil.ReadAll(resp.Body)
-			err := string(b)
-
-			So(err, ShouldEqual, "404 Not found")
-		})
 		/*Convey("The server should keep a map of clientID's to secrets for later validation", func() {
 			response, _ := http.Get(testServer.URL)
 			body, _ := ioutil.ReadAll(response.Body)
