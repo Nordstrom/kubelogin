@@ -5,27 +5,43 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 )
 
 func responseHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "hello world")
 }
 
-func cliGetHandler(w http.ResponseWriter, r *http.Request) {
+var (
+	clusterName string
+	port        string
+)
 
-	u, _ := url.Parse(r.URL.String())
-	mappedItems, _ := url.ParseQuery(u.RawQuery)
-	id := mappedItems["clientID"][0]
-	port := mappedItems["port"][0]
-	if id == "" || port == "" {
+func cliGetRedirectHandler(w http.ResponseWriter, r *http.Request) {
+	redirectURL := "https://nauth-test.auth0.com/login?client=" + os.Getenv("CLIENT_ID")
+	http.Redirect(w, r, redirectURL, http.StatusMovedPermanently)
+
+}
+
+func cliGetHandler(w http.ResponseWriter, r *http.Request) {
+	ipAddr := r.RemoteAddr
+	link, _ := url.Parse(r.URL.String())
+	mappedItems, _ := url.ParseQuery(link.RawQuery)
+	clusterName = mappedItems["clusterID"][0]
+	port = mappedItems["port"][0]
+	if clusterName == "" || port == "" {
 		http.Error(w, "400 Bad Request", http.StatusBadRequest)
 		//may be better to do a log.Fatal() for this error
 		return
 	}
 	//will need to verify the Id based on some predetermined location that it's saved in. this will determine if it proceeds or returns a 404
-	idport := (id + "," + port)
+	namePortIP := (clusterName + "," + port + "," + ipAddr)
 	//current way of proving that we can get the id and the port num to the server
-	fmt.Fprint(w, idport)
+	fmt.Fprint(w, namePortIP)
+	//log.Print(os.Getenv("CLIENT_ID"))
+	//redirectURL := "https://nauth-test.auth0.com/login?client=" + os.Getenv("CLIENT_ID")
+	//log.Print(redirectURL)
+	//http.Redirect(w, r, redirectURL, http.StatusMovedPermanently)
 }
 
 func authPostHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +55,7 @@ func authPostJwtHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func postToAuthHandler(id string, secret string, authCode string) error {
-	//need info for auth server
+	//need info on how auth server handles post requests
 	fmt.Print("send to the auth server")
 	return nil
 }
@@ -52,10 +68,12 @@ func postTokenToCliHandler(jwtToken string) error {
 
 func main() {
 	/*
-	   sets up a new mux. the default handler at root is handler and if there's an, log it
+			   sets up a new mux. upon a user clicking the link to our server, it will be handled by the cliGetHandler.
+		       When the auth server posts to our server it should be controlled by the authPostHandler.
 	*/
 	mux := http.NewServeMux()
-	mux.HandleFunc("/login", cliGetHandler)
+	//mux.HandleFunc("/authcode/", authPostHandler)
+	mux.HandleFunc("/login/", cliGetHandler)
 	if err := http.ListenAndServe(":8000", mux); err != nil {
 		log.Fatal(err)
 	}

@@ -13,6 +13,7 @@ import (
 
 func TestSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
+		redirectTestServer := httptest.NewServer(http.HandlerFunc(cliGetRedirectHandler))
 		responseTestServer := httptest.NewServer(http.HandlerFunc(responseHandler))
 		cliGetTestServer := httptest.NewServer(http.HandlerFunc(cliGetHandler))
 		authPostTestServer := httptest.NewServer(http.HandlerFunc(authPostHandler))
@@ -21,23 +22,32 @@ func TestSpecs(t *testing.T) {
 			response, _ := http.Get(responseTestServer.URL)
 			So(response.StatusCode, ShouldEqual, 200)
 		})
+		Convey("The cliGetRedirectHandler should receive a status code 200 from the webpage after redirect", func() {
+			url := redirectTestServer.URL + "/login/auth?clusterID=mycluster&port=8000"
+			resp, _ := http.Get(url)
+			resp.Body.Close()
+			So(resp.StatusCode, ShouldEqual, 200)
+
+		})
 		Convey("The cliGetHandler should receive clientID and port from the CLI", func() {
-			url := cliGetTestServer.URL + "/login/auth?clientID=myclient&port=8000"
+			url := cliGetTestServer.URL + "/login/auth?clusterID=mycluster&port=8000"
 			resp, _ := http.Get(url)
 			buf := new(bytes.Buffer)
 			buf.ReadFrom(resp.Body)
 			s := buf.String()
 			resp.Body.Close()
-			So(s, ShouldEqual, "myclient,8000")
+			So(s, ShouldEqual, "mycluster,8000,127.0.0.1")
 		})
-		Convey("If the port is missing the cliPostHandler should return a 400 error", func() {
-			url := cliGetTestServer.URL + "/login/auth?clientID=myclient&port="
+		Convey("If the port is missing the cliGetHandler should return a 400 error", func() {
+			url := cliGetTestServer.URL + "/login/auth?clusterID=myclient&port="
 			resp, _ := http.Get(url)
+			resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 400)
 		})
 		Convey("If the ID is missing the cliGetHandler should return a 400 error", func() {
-			url := cliGetTestServer.URL + "/login/auth?clientID=&port=8000"
+			url := cliGetTestServer.URL + "/login/auth?clusterID=&port=8000"
 			resp, _ := http.Get(url)
+			resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 400)
 		})
 
@@ -58,6 +68,7 @@ func TestSpecs(t *testing.T) {
 			resp, _ := http.Post(authPostTestServer.URL, "application/x-www-form-urlencoded", strings.NewReader(encode))
 			b, _ := ioutil.ReadAll(resp.Body)
 			result := string(b)
+			resp.Body.Close()
 			So(result, ShouldEqual, "good news everyone")
 		})
 		/*Convey("Server should receive the auth code from auth server POST", func() {
@@ -76,6 +87,7 @@ func TestSpecs(t *testing.T) {
 			resp, _ := http.Post(authPostJwtTestServer.URL, "application/x-www-form-urlencoded", strings.NewReader(encode))
 			b, _ := ioutil.ReadAll(resp.Body)
 			result := string(b)
+			resp.Body.Close()
 			So(result, ShouldEqual, "good news everyone")
 		})
 		Convey("Server should finally redirect JWT to CLI at CLI's local port", func() {
