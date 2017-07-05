@@ -4,6 +4,7 @@ import (
 	"bytes"
 	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -25,7 +26,7 @@ func TestSpecs(t *testing.T) {
 		Convey("The cliGetRedirectHandler should receive a status code 200 from the webpage after redirect", func() {
 			url := redirectTestServer.URL + "/login/port?port=8000"
 			resp, _ := http.Get(url)
-			resp.Body.Close()
+			//resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 200)
 
 		})
@@ -35,6 +36,7 @@ func TestSpecs(t *testing.T) {
 			buf := new(bytes.Buffer)
 			buf.ReadFrom(resp.Body)
 			s := buf.String()
+			resp.Body.Close()
 			So(s, ShouldEqual, "8000")
 		})
 		Convey("If the port is missing the cliGetHandler should return a 400 error", func() {
