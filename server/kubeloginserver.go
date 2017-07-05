@@ -13,6 +13,7 @@ func responseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 var (
+	//
 	clusterName string
 	port        string
 )
@@ -24,21 +25,15 @@ func cliGetRedirectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func cliGetHandler(w http.ResponseWriter, r *http.Request) {
-	ipAddr := r.RemoteAddr
 	link, _ := url.Parse(r.URL.String())
 	mappedItems, _ := url.ParseQuery(link.RawQuery)
-	clusterName = mappedItems["clusterID"][0]
 	port = mappedItems["port"][0]
-	if clusterName == "" || port == "" {
+	if port == "" {
 		http.Error(w, "400 Bad Request", http.StatusBadRequest)
 		//may be better to do a log.Fatal() for this error
 		return
 	}
-	//will need to verify the Id based on some predetermined location that it's saved in. this will determine if it proceeds or returns a 404
-	namePortIP := (clusterName + "," + port + "," + ipAddr)
-	//current way of proving that we can get the id and the port num to the server
-	fmt.Fprint(w, namePortIP)
-	//log.Print(os.Getenv("CLIENT_ID"))
+	fmt.Fprint(w, port)
 	//redirectURL := "https://nauth-test.auth0.com/login?client=" + os.Getenv("CLIENT_ID")
 	//log.Print(redirectURL)
 	//http.Redirect(w, r, redirectURL, http.StatusMovedPermanently)
@@ -54,7 +49,7 @@ func authPostJwtHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "good news everyone")
 }
 
-func postToAuthHandler(id string, secret string, authCode string) error {
+func postToAuthHandler(clientID string, clientSecret string, authCode string) error {
 	//need info on how auth server handles post requests
 	fmt.Print("send to the auth server")
 	return nil

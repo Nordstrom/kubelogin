@@ -23,29 +23,22 @@ func TestSpecs(t *testing.T) {
 			So(response.StatusCode, ShouldEqual, 200)
 		})
 		Convey("The cliGetRedirectHandler should receive a status code 200 from the webpage after redirect", func() {
-			url := redirectTestServer.URL + "/login/auth?clusterID=mycluster&port=8000"
+			url := redirectTestServer.URL + "/login/port?port=8000"
 			resp, _ := http.Get(url)
 			resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 200)
 
 		})
-		Convey("The cliGetHandler should receive clientID and port from the CLI", func() {
-			url := cliGetTestServer.URL + "/login/auth?clusterID=mycluster&port=8000"
+		Convey("The cliGetHandler should receive clientID, and port from the CLI", func() {
+			url := cliGetTestServer.URL + "/login/port?port=8000"
 			resp, _ := http.Get(url)
 			buf := new(bytes.Buffer)
 			buf.ReadFrom(resp.Body)
 			s := buf.String()
-			resp.Body.Close()
-			So(s, ShouldEqual, "mycluster,8000,127.0.0.1")
+			So(s, ShouldEqual, "8000")
 		})
 		Convey("If the port is missing the cliGetHandler should return a 400 error", func() {
-			url := cliGetTestServer.URL + "/login/auth?clusterID=myclient&port="
-			resp, _ := http.Get(url)
-			resp.Body.Close()
-			So(resp.StatusCode, ShouldEqual, 400)
-		})
-		Convey("If the ID is missing the cliGetHandler should return a 400 error", func() {
-			url := cliGetTestServer.URL + "/login/auth?clusterID=&port=8000"
+			url := cliGetTestServer.URL + "/login/port?port="
 			resp, _ := http.Get(url)
 			resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 400)
