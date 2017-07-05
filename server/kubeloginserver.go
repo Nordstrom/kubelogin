@@ -67,7 +67,7 @@ func main() {
 	*/
 	mux := http.NewServeMux()
 	//mux.HandleFunc("/authcode/", authPostHandler)
-	mux.HandleFunc("/login/", cliGetHandler)
+	mux.HandleFunc("/login/", cliGetRedirectHandler)
 	if err := http.ListenAndServe(":8000", mux); err != nil {
 		log.Fatal(err)
 	}
