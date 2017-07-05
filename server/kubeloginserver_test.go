@@ -4,7 +4,6 @@ import (
 	"bytes"
 	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
