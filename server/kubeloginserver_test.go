@@ -25,7 +25,7 @@ func TestSpecs(t *testing.T) {
 		Convey("The cliGetRedirectHandler should receive a status code 200 from the webpage after redirect", func() {
 			url := redirectTestServer.URL + "/login/port?port=8000"
 			resp, _ := http.Get(url)
-			//resp.Body.Close()
+			resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 200)
 
 		})

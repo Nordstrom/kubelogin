@@ -13,9 +13,8 @@ func responseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 var (
-	//
-	clusterName string
-	port        string
+	//abstract this out to send as metadata to the auth0 server where we can get it back. saves us from worrying about state
+	port string
 )
 
 func cliGetRedirectHandler(w http.ResponseWriter, r *http.Request) {
