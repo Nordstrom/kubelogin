@@ -29,7 +29,7 @@ func TestSpecs(t *testing.T) {
 			So(resp.StatusCode, ShouldEqual, 200)
 
 		})
-		Convey("The cliGetHandler should receive clientID, and port from the CLI", func() {
+		Convey("The cliGetHandler should receive the port from the CLI", func() {
 			url := cliGetTestServer.URL + "/login/port?port=8000"
 			resp, _ := http.Get(url)
 			buf := new(bytes.Buffer)
