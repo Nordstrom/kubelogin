@@ -1,21 +1,41 @@
 package main
 
+//handlelogin with dex handles the get & redirectURL
+//handle callback handles the get from the auth server, gets the code, exchanges for the jwt.
+//provider is the n-auth link minus the login
+
 import (
+	"context"
 	"fmt"
+	"github.com/coreos/go-oidc"
+	"golang.org/x/oauth2"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 )
+
+type serverApp struct {
+	clientID     string
+	clientSecret string
+	redirectURI  string
+	verifier     *oidc.IDTokenVerifier
+	provider     *oidc.Provider
+	client       *http.Client
+}
+
+func (app *serverApp) oauth2Config(scopes []string) *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     app.clientID,
+		ClientSecret: app.clientSecret,
+		Endpoint:     app.provider.Endpoint(),
+		Scopes:       scopes,
+		RedirectURL:  app.redirectURI,
+	}
+}
 
 func responseHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "hello world")
 }
-
-var (
-	//abstract this out to send as metadata to the auth0 server where we can get it back. saves us from worrying about state
-	port string
-)
 
 func cliGetRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	redirectURL := "https://nauth-test.auth0.com/login?client=" + os.Getenv("CLIENT_ID")
@@ -23,35 +43,21 @@ func cliGetRedirectHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func cliGetHandler(w http.ResponseWriter, r *http.Request) {
-	link, _ := url.Parse(r.URL.String())
-	mappedItems, _ := url.ParseQuery(link.RawQuery)
-	port = mappedItems["port"][0]
-	if port == "" {
+func (app *serverApp) handleCliLogin(w http.ResponseWriter, r *http.Request) {
+	portState := r.FormValue("port")
+	if portState == "" {
 		http.Error(w, "400 Bad Request", http.StatusBadRequest)
-		//may be better to do a log.Fatal() for this error
 		return
 	}
-	fmt.Fprint(w, port)
-	//redirectURL := "https://nauth-test.auth0.com/login?client=" + os.Getenv("CLIENT_ID")
-	//log.Print(redirectURL)
-	//http.Redirect(w, r, redirectURL, http.StatusMovedPermanently)
+	var scopes []string
+	scopes = append(scopes, "groups", "email", "password")
+	authCodeURL := app.oauth2Config(scopes).AuthCodeURL(portState)
+	log.Print(authCodeURL)
+	http.Redirect(w, r, authCodeURL, http.StatusSeeOther)
 }
 
-func authPostHandler(w http.ResponseWriter, r *http.Request) {
-	//need info for auth server
-	fmt.Fprint(w, "good news everyone")
-}
+func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
 
-func authPostJwtHandler(w http.ResponseWriter, r *http.Request) {
-	//need info for auth server
-	fmt.Fprint(w, "good news everyone")
-}
-
-func postToAuthHandler(clientID string, clientSecret string, authCode string) error {
-	//need info on how auth server handles post requests
-	fmt.Print("send to the auth server")
-	return nil
 }
 
 func postTokenToCliHandler(jwtToken string) error {
@@ -65,10 +71,22 @@ func main() {
 			   sets up a new mux. upon a user clicking the link to our server, it will be handled by the cliGetHandler.
 		       When the auth server posts to our server it should be controlled by the authPostHandler.
 	*/
+	var app serverApp
+	app.clientID = os.Getenv("CLIENT_ID")
+	app.clientSecret = os.Getenv("CLIENT_SECRET")
+	app.redirectURI = "http://localhost:3000/callback"
+	app.client = http.DefaultClient
+	contxt := oidc.ClientContext(context.Background(), app.client)
+	provider, err := oidc.NewProvider(contxt, "https://nauth-test.auth0.com/")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
+	}
+	app.provider = provider
+	app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
 	mux := http.NewServeMux()
-	//mux.HandleFunc("/authcode/", authPostHandler)
-	mux.HandleFunc("/login/", cliGetRedirectHandler)
-	if err := http.ListenAndServe(":8000", mux); err != nil {
+	mux.HandleFunc("/callback", app.callbackHandler)
+	mux.HandleFunc("/login/", app.handleCliLogin)
+	if err := http.ListenAndServe(":3000", mux); err != nil {
 		log.Fatal(err)
 	}
 }
