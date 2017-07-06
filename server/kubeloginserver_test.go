@@ -14,6 +14,7 @@ import (
 
 func TestSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
+
 		var app serverApp
 		app.clientID = os.Getenv("CLIENT_ID")
 		app.clientSecret = os.Getenv("CLIENT_SECRET")
@@ -23,9 +24,12 @@ func TestSpecs(t *testing.T) {
 		provider, _ := oidc.NewProvider(contxt, "https://nauth-test.auth0.com/")
 		app.provider = provider
 		app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
+
+		callbackTest := httptest.NewServer(http.HandlerFunc(app.callbackHandler))
 		redirectTestServer := httptest.NewServer(http.HandlerFunc(cliGetRedirectHandler))
 		responseTestServer := httptest.NewServer(http.HandlerFunc(responseHandler))
 		cliGetTestServer := httptest.NewServer(http.HandlerFunc(app.handleCliLogin))
+
 		Convey("The server should get a 200 response upon a successful URL", func() {
 			response, _ := http.Get(responseTestServer.URL)
 			So(response.StatusCode, ShouldEqual, 200)
@@ -45,12 +49,12 @@ func TestSpecs(t *testing.T) {
 			So(resp.StatusCode, ShouldEqual, 301)
 
 		})
-		Convey("The cliGetHandler should receive the port from the CLI", func() {
+		Convey("The cliHandleLogin function should get a status code 200 for a correct redirect", func() {
 			url := cliGetTestServer.URL + "/login/port?port=8000"
 			resp, _ := http.Get(url)
 			So(resp.StatusCode, ShouldEqual, 200)
 		})
-		Convey("If the port is missing the cliGetHandler should return a 400 error", func() {
+		Convey("If the port is missing the cliHandleLogin should return a 400 error", func() {
 			url := cliGetTestServer.URL + "/login/port?port="
 			resp, _ := http.Get(url)
 			resp.Body.Close()

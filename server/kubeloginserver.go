@@ -6,11 +6,13 @@ package main
 
 import (
 	"context"
+
 	"fmt"
 	"github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
 	"log"
 	"net/http"
+
 	"os"
 )
 
@@ -57,7 +59,35 @@ func (app *serverApp) handleCliLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		err   error
+		token *oauth2.Token
+	)
+	contxt := oidc.ClientContext(r.Context(), app.client)
 
+	log.Print(contxt)
+	oauth2Config := app.oauth2Config(nil)
+	authCode := r.FormValue("code")
+
+	log.Print(r.FormValue("state"))
+	log.Print(authCode)
+
+	token, err = oauth2Config.Exchange(contxt, authCode)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
+	}
+	log.Print(token)
+	rawIDToken, ok := token.Extra("access_token").(string)
+	log.Print(rawIDToken)
+	if !ok {
+		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
+	}
+	idToken, err := app.verifier.Verify(r.Context(), rawIDToken)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to verify ID token"), http.StatusInternalServerError)
+	}
+	log.Print(idToken)
 }
 
 func postTokenToCliHandler(jwtToken string) error {
@@ -73,7 +103,7 @@ func main() {
 	*/
 	var app serverApp
 	app.clientID = os.Getenv("CLIENT_ID")
-	app.clientSecret = os.Getenv("CLIENT_SECRET")
+	app.clientSecret = os.Getenv("CLIENT_SEC")
 	app.redirectURI = "http://localhost:3000/callback"
 	app.client = http.DefaultClient
 	contxt := oidc.ClientContext(context.Background(), app.client)
