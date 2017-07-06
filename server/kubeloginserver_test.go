@@ -25,7 +25,7 @@ func TestSpecs(t *testing.T) {
 		app.provider = provider
 		app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
 
-		callbackTest := httptest.NewServer(http.HandlerFunc(app.callbackHandler))
+		//callbackTest := httptest.NewServer(http.HandlerFunc(app.callbackHandler))
 		redirectTestServer := httptest.NewServer(http.HandlerFunc(cliGetRedirectHandler))
 		responseTestServer := httptest.NewServer(http.HandlerFunc(responseHandler))
 		cliGetTestServer := httptest.NewServer(http.HandlerFunc(app.handleCliLogin))
@@ -49,7 +49,7 @@ func TestSpecs(t *testing.T) {
 			So(resp.StatusCode, ShouldEqual, 301)
 
 		})
-		Convey("The cliHandleLogin function should get a status code 200 for a correct redirect", func() {
+		Convey("The cliHandleLogin should get a status code 200 for a correct redirect", func() {
 			url := cliGetTestServer.URL + "/login/port?port=8000"
 			resp, _ := http.Get(url)
 			So(resp.StatusCode, ShouldEqual, 200)
@@ -60,23 +60,6 @@ func TestSpecs(t *testing.T) {
 			resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 400)
 		})
-
-		/*Convey("The server should keep a map of clientID's to secrets for later validation", func() {
-			response, _ := http.Get(testServer.URL)
-			body, _ := ioutil.ReadAll(response.Body)
-			So(string(body), ShouldEqual, "hoopla")
-		})
-		Convey("The server should keep a map of http session id's/local ports to confirm things are getting sent to right location", func() {
-			response, _ := http.Get(testServer.URL)
-			body, _ := ioutil.ReadAll(response.Body)
-			So(string(body), ShouldEqual, "hoopla")
-		})*/
-
-		/*Convey("Server should receive the auth code from auth server POST", func() {
-			response, _ := http.Get(testServer.URL)
-			body, _ := ioutil.ReadAll(response.Body)
-			So(string(body), ShouldEqual, "hoopla")
-		})*/
 
 		Convey("Server should finally redirect JWT to CLI at CLI's local port", func() {
 			response := postTokenToCliHandler("jwtToken")
