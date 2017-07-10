@@ -35,14 +35,8 @@ func (app *serverApp) oauth2Config(scopes []string) *oauth2.Config {
 	}
 }
 
-func responseHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "hello world")
-}
-
-func cliGetRedirectHandler(w http.ResponseWriter, r *http.Request) {
-	redirectURL := "https://nauth-test.auth0.com/login?client=" + os.Getenv("CLIENT_ID")
-	http.Redirect(w, r, redirectURL, http.StatusMovedPermanently)
-
+func incorrectURL(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "404 Page Not Found", http.StatusNotFound)
 }
 
 func (app *serverApp) handleCliLogin(w http.ResponseWriter, r *http.Request) {
@@ -89,16 +83,16 @@ func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var claims json.RawMessage
-	if err := idToken.Claims(&claims); err != nil {
-		log.Print(err)
+	if claimErr := idToken.Claims(&claims); err != nil {
+		log.Print(claimErr)
 	}
 	buff := new(bytes.Buffer)
 	json.Indent(buff, []byte(claims), "", "  ")
-	buff.Bytes()
-	log.Print(buff)
+	jwt, err := buff.ReadString('}')
+	log.Print(jwt, err)
 }
 
-func postTokenToCliHandler(jwtToken string) error {
+func postTokenToCliHandler(jwtToken, port string) error {
 	//will be easier to implement with a base cli created to communicate with this server
 	fmt.Print("send back to the client")
 	return nil
@@ -131,6 +125,7 @@ func main() {
 	app.provider = provider
 	app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", incorrectURL)
 	mux.HandleFunc("/callback", app.callbackHandler)
 	mux.HandleFunc("/login/", app.handleCliLogin)
 	if err := http.ListenAndServe(":3000", mux); err != nil {

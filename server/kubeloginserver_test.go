@@ -26,15 +26,16 @@ func TestSpecs(t *testing.T) {
 		app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
 
 		//callbackTest := httptest.NewServer(http.HandlerFunc(app.callbackHandler))
-		redirectTestServer := httptest.NewServer(http.HandlerFunc(cliGetRedirectHandler))
-		responseTestServer := httptest.NewServer(http.HandlerFunc(responseHandler))
+		incorrectPathServer := httptest.NewServer(http.HandlerFunc(incorrectURL))
 		cliGetTestServer := httptest.NewServer(http.HandlerFunc(app.handleCliLogin))
 
-		Convey("The server should get a 200 response upon a successful URL", func() {
-			response, _ := http.Get(responseTestServer.URL)
-			So(response.StatusCode, ShouldEqual, 200)
+		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
+			response, _ := http.Get(incorrectPathServer.URL)
+			response.Body.Close()
+			So(response.StatusCode, ShouldEqual, 404)
 		})
-		Convey("The cliGetRedirectHandler should receive a status code 301 from the webpage after redirect", func() {
+
+		/*Convey("The cliGetRedirectHandler should receive a status code 301 from the webpage after redirect", func() {
 			url := redirectTestServer.URL + "/login/port?port=8000"
 			client := &http.Client{
 				CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -48,10 +49,11 @@ func TestSpecs(t *testing.T) {
 			//log.Print(resp.StatusCode)
 			So(resp.StatusCode, ShouldEqual, 301)
 
-		})
+		})*/
 		Convey("The cliHandleLogin should get a status code 200 for a correct redirect", func() {
 			url := cliGetTestServer.URL + "/login/port?port=8000"
 			resp, _ := http.Get(url)
+			log.Print(resp.StatusCode)
 			So(resp.StatusCode, ShouldEqual, 200)
 		})
 		Convey("If the port is missing the cliHandleLogin should return a 400 error", func() {
@@ -62,7 +64,7 @@ func TestSpecs(t *testing.T) {
 		})
 
 		Convey("Server should finally redirect JWT to CLI at CLI's local port", func() {
-			response := postTokenToCliHandler("jwtToken")
+			response := postTokenToCliHandler("jwtToken", "8000")
 			So(response, ShouldEqual, nil)
 		})
 	})
