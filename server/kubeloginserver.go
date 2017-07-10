@@ -35,10 +35,6 @@ func (app *serverApp) oauth2Config(scopes []string) *oauth2.Config {
 	}
 }
 
-func incorrectURL(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "404 Page Not Found", http.StatusNotFound)
-}
-
 func (app *serverApp) handleCliLogin(w http.ResponseWriter, r *http.Request) {
 	portState := r.FormValue("port")
 	if portState == "" {
@@ -125,7 +121,6 @@ func main() {
 	app.provider = provider
 	app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", incorrectURL)
 	mux.HandleFunc("/callback", app.callbackHandler)
 	mux.HandleFunc("/login/", app.handleCliLogin)
 	if err := http.ListenAndServe(":3000", mux); err != nil {
