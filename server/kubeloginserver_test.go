@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
 
@@ -26,7 +27,7 @@ func incorrectURL(w http.ResponseWriter, r *http.Request) {
 func TestSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 
-		var app serverApp
+		var app serverSideClient
 		app.clientID = "myawesomeid"
 		app.clientSecret = "myawesomesecret"
 		app.redirectURI = "http://localhost:3000/callback"
@@ -36,7 +37,7 @@ func TestSpecs(t *testing.T) {
 		app.provider = provider
 		app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
 
-		//callbackTest := httptest.NewServer(http.HandlerFunc(app.callbackHandler))
+		localTest := httptest.NewServer(http.HandlerFunc(localListener))
 		incorrectPathServer := httptest.NewServer(http.HandlerFunc(incorrectURL))
 		cliGetTestServer := httptest.NewServer(http.HandlerFunc(app.handleCliLogin))
 		callbackItemsTestServer := httptest.NewServer(http.HandlerFunc(callbackItems))
@@ -99,6 +100,21 @@ func TestSpecs(t *testing.T) {
 			testJwt := "https://claims.nordstrom.com/nauth/, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
 			testResult := jwtChecker(testJwt)
 			So(testResult, ShouldEqual, false)
+		})
+		Convey("authClientSetup should return a serverApp struct with necessary info filled in", func() {
+			testClient := authClientSetup()
+			correctID := testClient.clientID == os.Getenv("CLIENT_ID")
+			correctSec := testClient.clientSecret == os.Getenv("CLIENT_SEC")
+			correctURI := testClient.redirectURI == "http://localhost:3000/callback"
+			correctClient := testClient.client == http.DefaultClient
+			overallCorrect := correctClient && correctID && correctSec && correctURI
+			So(overallCorrect, ShouldEqual, true)
+		})
+		Convey("the local listener should return a message saying that a reqeust has been received", func() {
+			resp, _ := http.Get(localTest.URL)
+			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
+			So(string(bodyBytes), ShouldEqual, "received a request")
 		})
 	})
 }
