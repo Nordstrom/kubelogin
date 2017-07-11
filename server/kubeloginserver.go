@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -149,14 +150,13 @@ func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	jwt := jwtToString(claims, w)
 	validData := jwtChecker(jwt)
 	if validData {
-		//sendBack(w, r, jwt, port)
-		log.Print(jwt)
-		log.Print(port)
-	} else {
-		log.Print(jwt)
-		http.Error(w, fmt.Sprintf("Jwt does not contain necessary data"), http.StatusInternalServerError)
+		log.Print("about to sendback")
+		sendBack(w, r, jwt, port)
 		return
 	}
+	log.Print(jwt)
+	http.Error(w, fmt.Sprintf("Jwt does not contain necessary data"), http.StatusInternalServerError)
+	return
 
 }
 
@@ -166,7 +166,8 @@ func sendBack(w http.ResponseWriter, r *http.Request, jwt string, port string) {
 	*/
 	form := url.Values{}
 	form.Add("jwt", jwt)
-	url := "localhost:" + port
+	url := "http://localhost:" + port + "/local"
+	log.Print("going to sendBack to this url: ", url)
 	resp, err := http.Post(url, "application/x-www-form-encoded", strings.NewReader(form.Encode()))
 	if resp.StatusCode != 200 || err != nil {
 		http.Error(w, "Couldnt post to url: ["+url+"]", http.StatusBadRequest)
@@ -175,11 +176,17 @@ func sendBack(w http.ResponseWriter, r *http.Request, jwt string, port string) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
+func localListener(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	body, _ := ioutil.ReadAll(r.Body)
+	log.Print(string(body))
+}
+
 func main() {
 	/*
-				   sets up a new mux. upon a user clicking the link to our server, it will be handled by the handleLogin function.
-			       When the auth server posts to our server it will be controlled by the callbackHandler. This is also initial setup for
-	               the struct to contain necessary information
+					   sets up a new mux. upon a user clicking the link to our server, it will be handled by the handleLogin function.
+				       When the auth server posts to our server it will be controlled by the callbackHandler. This is also initial setup for
+		               the struct to contain necessary information
 	*/
 	var app serverApp
 	app.clientID = os.Getenv("CLIENT_ID")
@@ -195,6 +202,7 @@ func main() {
 	app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/local", localListener)
 	mux.HandleFunc("/callback", app.callbackHandler)
 	mux.HandleFunc("/login/", app.handleCliLogin)
 	if err := http.ListenAndServe(":3000", mux); err != nil {
