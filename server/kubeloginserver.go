@@ -69,6 +69,17 @@ func jwtToString(claims json.RawMessage, w http.ResponseWriter) string {
 	return jwt
 }
 
+func jwtChecker(jwt string) bool {
+	groups := strings.Contains(jwt, "groups")
+	username := strings.Contains(jwt, "username")
+	validUsername := strings.Contains(jwt, "@nordstrom.com")
+	log.Print(groups, validUsername, username)
+	if groups && username && validUsername {
+		return true
+	}
+	return false
+}
+
 func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		err   error
@@ -78,7 +89,6 @@ func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	oauth2Config := app.oauth2Config(nil)
 	authCode := getField(r, "code")
-	log.Print(authCode)
 	port := getField(r, "state")
 	if authCode == "" || port == "" {
 		http.Error(w, "400: Bad Request", http.StatusBadRequest)
@@ -112,11 +122,17 @@ func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jwt := jwtToString(claims, w)
+	validData := jwtChecker(jwt)
+	if validData {
+		//sendBack(w, r, jwt, port)
+		log.Print(jwt)
+		log.Print(port)
+	} else {
+		log.Print(jwt)
+		http.Error(w, fmt.Sprintf("Jwt does not contain necessary data"), http.StatusInternalServerError)
+		return
+	}
 
-	log.Print(jwt)
-	log.Print(port)
-
-	//sendBack(w, r, jwt, port)
 }
 
 func sendBack(w http.ResponseWriter, r *http.Request, jwt string, port string) {

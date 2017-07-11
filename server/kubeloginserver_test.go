@@ -91,5 +91,15 @@ func TestSpecs(t *testing.T) {
 			bodyString := string(responseData)
 			So(bodyString, ShouldEqual, "myawesomecode, ")
 		})
+		Convey("jwtChecker should return true upon the necessary fields being present", func() {
+			testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
+			testResult := jwtChecker(testJwt)
+			So(testResult, ShouldEqual, true)
+		})
+		Convey("jwtChecker should fail if necessary data is missing", func() {
+			testJwt := "https://claims.nordstrom.com/nauth/, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
+			testResult := jwtChecker(testJwt)
+			So(testResult, ShouldEqual, false)
+		})
 	})
 }
