@@ -19,6 +19,9 @@ import (
 )
 
 type serverApp struct {
+	/*
+	   struct that contains necessary oauth/oidc information
+	*/
 	clientID     string
 	clientSecret string
 	redirectURI  string
@@ -28,6 +31,9 @@ type serverApp struct {
 }
 
 func (app *serverApp) oauth2Config(scopes []string) *oauth2.Config {
+	/*
+	   the config for oauth2, scopes contain info we want back from the auth server
+	*/
 	return &oauth2.Config{
 		ClientID:     app.clientID,
 		ClientSecret: app.clientSecret,
@@ -38,6 +44,12 @@ func (app *serverApp) oauth2Config(scopes []string) *oauth2.Config {
 }
 
 func (app *serverApp) handleCliLogin(w http.ResponseWriter, r *http.Request) {
+	/*
+	   handles the get request from the client clicking the link they receive from the CLI
+	   this will grab the port and sets it as the state for later use
+	   we set the scopes to be openid, username, and groups so we get a jwt later with the needed info
+	   we then redirect to the login page with the necessary info.
+	*/
 	portState := r.FormValue("port")
 	if portState == "" {
 		http.Error(w, "400 Bad Request", http.StatusBadRequest)
@@ -50,6 +62,9 @@ func (app *serverApp) handleCliLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func getField(r *http.Request, fieldName string) string {
+	/*
+	   used to grab the field from the callback request
+	*/
 	if r.FormValue(fieldName) != "" {
 		log.Print("fieldname: [" + r.FormValue(fieldName) + "]")
 		return r.FormValue(fieldName)
@@ -58,6 +73,9 @@ func getField(r *http.Request, fieldName string) string {
 }
 
 func jwtToString(claims json.RawMessage, w http.ResponseWriter) string {
+	/*
+	   converts the jwt from bytes to a readable string
+	*/
 	buff := new(bytes.Buffer)
 	json.Indent(buff, []byte(claims), "", "  ")
 	jwt, err := buff.ReadString('}')
@@ -70,6 +88,9 @@ func jwtToString(claims json.RawMessage, w http.ResponseWriter) string {
 }
 
 func jwtChecker(jwt string) bool {
+	/*
+	   checks to make sure the jwt contains necessary info to send back to the client
+	*/
 	groups := strings.Contains(jwt, "groups")
 	username := strings.Contains(jwt, "username")
 	validUsername := strings.Contains(jwt, "@nordstrom.com")
@@ -81,6 +102,10 @@ func jwtChecker(jwt string) bool {
 }
 
 func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
+	/*
+	   handles the callback from the auth server, exchanges the authcode, clientID, clientSecret for a rawToken which holds an id_token
+	   field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
+	*/
 	var (
 		err   error
 		token *oauth2.Token
@@ -136,7 +161,9 @@ func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendBack(w http.ResponseWriter, r *http.Request, jwt string, port string) {
-	//will be easier to implement with a base cli created to communicate with this server
+	/*
+	   this will take the jwt and pass it back to the client using the port given earlier and lastly redirect to the clients localhost
+	*/
 	form := url.Values{}
 	form.Add("jwt", jwt)
 	url := "localhost:" + port
@@ -150,8 +177,9 @@ func sendBack(w http.ResponseWriter, r *http.Request, jwt string, port string) {
 
 func main() {
 	/*
-			   sets up a new mux. upon a user clicking the link to our server, it will be handled by the cliGetHandler.
-		       When the auth server posts to our server it should be controlled by the authPostHandler.
+				   sets up a new mux. upon a user clicking the link to our server, it will be handled by the handleLogin function.
+			       When the auth server posts to our server it will be controlled by the callbackHandler. This is also initial setup for
+	               the struct to contain necessary information
 	*/
 	var app serverApp
 	app.clientID = os.Getenv("CLIENT_ID")
@@ -165,6 +193,7 @@ func main() {
 	}
 	app.provider = provider
 	app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", app.callbackHandler)
 	mux.HandleFunc("/login/", app.handleCliLogin)
