@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func callbackItems(w http.ResponseWriter, r *http.Request) {
+func getFieldsTest(w http.ResponseWriter, r *http.Request) {
 	authCode := getField(r, "code")
 	state := getField(r, "state")
 	returnedItems := authCode + ", " + state
@@ -27,7 +27,7 @@ func incorrectURL(w http.ResponseWriter, r *http.Request) {
 func TestSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 
-		var app serverSideClient
+		var app authOClient
 		app.clientID = "myawesomeid"
 		app.clientSecret = "myawesomesecret"
 		app.redirectURI = "http://localhost:3000/callback"
@@ -40,7 +40,7 @@ func TestSpecs(t *testing.T) {
 		localTest := httptest.NewServer(http.HandlerFunc(localListener))
 		incorrectPathServer := httptest.NewServer(http.HandlerFunc(incorrectURL))
 		cliGetTestServer := httptest.NewServer(http.HandlerFunc(app.handleCliLogin))
-		callbackItemsTestServer := httptest.NewServer(http.HandlerFunc(callbackItems))
+		callbackItemsTestServer := httptest.NewServer(http.HandlerFunc(getFieldsTest))
 		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
 			response, _ := http.Get(incorrectPathServer.URL)
 			response.Body.Close()
@@ -93,12 +93,12 @@ func TestSpecs(t *testing.T) {
 		})
 		Convey("jwtChecker should return true upon the necessary fields being present", func() {
 			testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
-			testResult := jwtChecker(testJwt)
+			testResult := verifyJWT(testJwt)
 			So(testResult, ShouldEqual, true)
 		})
 		Convey("jwtChecker should fail if necessary data is missing", func() {
 			testJwt := "https://claims.nordstrom.com/nauth/, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
-			testResult := jwtChecker(testJwt)
+			testResult := verifyJWT(testJwt)
 			So(testResult, ShouldEqual, false)
 		})
 		Convey("authClientSetup should return a serverApp struct with necessary info filled in", func() {

@@ -1,9 +1,5 @@
 package main
 
-//handlelogin with dex handles the get & redirectURL
-//handle callback handles the get from the auth server, gets the code, exchanges for the jwt.
-//provider is the n-auth link minus the login
-
 import (
 	"bytes"
 	"context"
@@ -19,10 +15,10 @@ import (
 	"strings"
 )
 
-type serverSideClient struct {
-	/*
-	   struct that contains necessary oauth/oidc information
-	*/
+/*
+   struct that contains necessary oauth/oidc information
+*/
+type authOClient struct {
 	clientID     string
 	clientSecret string
 	redirectURI  string
@@ -31,10 +27,23 @@ type serverSideClient struct {
 	client       *http.Client
 }
 
-func (authClient *serverSideClient) oauth2Config(scopes []string) *oauth2.Config {
-	/*
-	   the config for oauth2, scopes contain info we want back from the auth server
-	*/
+const (
+	idToken      = "id_token"
+	port         = "port"
+	state        = "state"
+	groups       = "groups"
+	username     = "username"
+	usernameSpec = "@nordstrom.com"
+	authCode     = "code"
+	clientID     = "CLIENT_ID"
+	clientSecret = "CLIENT_SEC"
+)
+
+/*
+   the config for oauth2, scopes contain info we want back from the auth server
+*/
+func (authClient *authOClient) getOAuth2Config(scopes []string) *oauth2.Config {
+
 	return &oauth2.Config{
 		ClientID:     authClient.clientID,
 		ClientSecret: authClient.clientSecret,
@@ -44,28 +53,30 @@ func (authClient *serverSideClient) oauth2Config(scopes []string) *oauth2.Config
 	}
 }
 
-func (authClient *serverSideClient) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
-	/*
-	   handles the get request from the client clicking the link they receive from the CLI
-	   this will grab the port and sets it as the state for later use
-	   we set the scopes to be openid, username, and groups so we get a jwt later with the needed info
-	   we then redirect to the login page with the necessary info.
-	*/
-	portState := request.FormValue("port")
+/*
+   handles the get request from the client clicking the link they receive from the CLI
+   this will grab the port and sets it as the state for later use
+   we set the scopes to be openid, username, and groups so we get a jwt later with the needed info
+   we then redirect to the login page with the necessary info.
+*/
+func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
+
+	portState := request.FormValue(port)
 	if portState == "" {
-		http.Error(writer, "400 Bad Request", http.StatusBadRequest)
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	var scopes []string
 	scopes = append(scopes, "openid", " https://claims.nordstrom.com/nauth/username ", " https://claims.nordstrom.com/nauth/groups ")
-	authCodeURL := authClient.oauth2Config(scopes).AuthCodeURL(portState)
+	authCodeURL := authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
+/*
+   used to grab the field from the callback request
+*/
 func getField(request *http.Request, fieldName string) string {
-	/*
-	   used to grab the field from the callback request
-	*/
+
 	if request.FormValue(fieldName) != "" {
 		log.Print("fieldname: [" + request.FormValue(fieldName) + "]")
 		return request.FormValue(fieldName)
@@ -73,10 +84,11 @@ func getField(request *http.Request, fieldName string) string {
 	return ""
 }
 
+/*
+   converts the jwt from bytes to a readable string
+*/
 func jwtToString(claims json.RawMessage, writer http.ResponseWriter) string {
-	/*
-	   converts the jwt from bytes to a readable string
-	*/
+
 	buff := new(bytes.Buffer)
 	json.Indent(buff, []byte(claims), "", "  ")
 	jwt, err := buff.ReadString('}')
@@ -88,13 +100,14 @@ func jwtToString(claims json.RawMessage, writer http.ResponseWriter) string {
 	return jwt
 }
 
-func jwtChecker(jwt string) bool {
-	/*
-	   checks to make sure the jwt contains necessary info to send back to the client
-	*/
-	groups := strings.Contains(jwt, "groups")
-	username := strings.Contains(jwt, "username")
-	validUsername := strings.Contains(jwt, "@nordstrom.com")
+/*
+   checks to make sure the jwt contains necessary info to send back to the client
+*/
+func verifyJWT(jwt string) bool {
+
+	groups := strings.Contains(jwt, groups)
+	username := strings.Contains(jwt, username)
+	validUsername := strings.Contains(jwt, usernameSpec)
 	log.Print(groups, validUsername, username)
 	if groups && username && validUsername {
 		return true
@@ -102,22 +115,23 @@ func jwtChecker(jwt string) bool {
 	return false
 }
 
-func (authClient *serverSideClient) callbackHandler(writer http.ResponseWriter, request *http.Request) {
-	/*
-	   handles the callback from the auth server, exchanges the authcode, clientID, clientSecret for a rawToken which holds an id_token
-	   field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
-	*/
+/*
+   handles the callback from the auth server, exchanges the authcode, clientID, clientSecret for a rawToken which holds an id_token
+   field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
+*/
+func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, request *http.Request) {
+
 	var (
 		err   error
 		token *oauth2.Token
 	)
 	contxt := oidc.ClientContext(request.Context(), authClient.client)
 
-	oauth2Config := authClient.oauth2Config(nil)
-	authCode := getField(request, "code")
-	port := getField(request, "state")
+	oauth2Config := authClient.getOAuth2Config(nil)
+	authCode := getField(request, authCode)
+	port := getField(request, state)
 	if authCode == "" || port == "" {
-		http.Error(writer, "400: Bad Request", http.StatusBadRequest)
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 	}
 
 	token, err = oauth2Config.Exchange(contxt, authCode)
@@ -127,7 +141,7 @@ func (authClient *serverSideClient) callbackHandler(writer http.ResponseWriter, 
 		return
 	}
 
-	rawIDToken, ok := token.Extra("id_token").(string)
+	rawIDToken, ok := token.Extra(idToken).(string)
 	if !ok {
 		http.Error(writer, "no id_token in token response", http.StatusInternalServerError)
 		return
@@ -148,22 +162,22 @@ func (authClient *serverSideClient) callbackHandler(writer http.ResponseWriter, 
 	}
 
 	jwt := jwtToString(claims, writer)
-	validData := jwtChecker(jwt)
-	if validData {
-		log.Print("about to sendback")
-		sendBack(writer, request, jwt, port)
+	validJWT := verifyJWT(jwt)
+	if validJWT {
+		sendBackToClient(writer, request, jwt, port)
 		return
 	}
 	log.Print(jwt)
-	http.Error(writer, fmt.Sprintf("Jwt does not contain necessary data"), http.StatusInternalServerError)
+	http.Error(writer, fmt.Sprintf("JWT Verification Failed"), http.StatusInternalServerError)
 	return
 
 }
 
-func sendBack(writer http.ResponseWriter, request *http.Request, jwt string, port string) {
-	/*
-	   this will take the jwt and pass it back to the client using the port given earlier and lastly redirect to the clients localhost
-	*/
+/*
+   this will take the jwt and pass it back to the client using the port given earlier and lastly redirect to the clients localhost
+*/
+func sendBackToClient(writer http.ResponseWriter, request *http.Request, jwt string, port string) {
+
 	form := url.Values{}
 	form.Add("jwt", jwt)
 	url := "http://localhost:" + port + "/local"
@@ -176,18 +190,19 @@ func sendBack(writer http.ResponseWriter, request *http.Request, jwt string, por
 	http.Redirect(writer, request, url, http.StatusSeeOther)
 }
 
+//this belongs on CLI side but for testing purposes will be here
 func localListener(writer http.ResponseWriter, request *http.Request) {
-	//this belongs on CLI side but for testing purposes will be here
 	request.ParseForm()
 	body, _ := ioutil.ReadAll(request.Body)
 	log.Print(string(body))
 	fmt.Fprint(writer, "received a request")
 }
 
-func authClientSetup() serverSideClient {
-	var authClient serverSideClient
-	authClient.clientID = os.Getenv("CLIENT_ID")
-	authClient.clientSecret = os.Getenv("CLIENT_SEC")
+//sets up the struct for later use
+func authClientSetup() authOClient {
+	var authClient authOClient
+	authClient.clientID = os.Getenv(clientID)
+	authClient.clientSecret = os.Getenv(clientSecret)
 	authClient.redirectURI = "http://localhost:3000/callback"
 	authClient.client = http.DefaultClient
 	contxt := oidc.ClientContext(context.Background(), authClient.client)
@@ -200,12 +215,12 @@ func authClientSetup() serverSideClient {
 	return authClient
 }
 
+/*
+   sets up a new mux. upon a user clicking the link to our server, it will be handled by the handleLogin function.
+   When the auth server posts to our server it will be controlled by the callbackHandler. This is also initial setup for
+   the struct to contain necessary information
+*/
 func main() {
-	/*
-		sets up a new mux. upon a user clicking the link to our server, it will be handled by the handleLogin function.
-		When the auth server posts to our server it will be controlled by the callbackHandler. This is also initial setup for
-		the struct to contain necessary information
-	*/
 
 	authClient := authClientSetup()
 
