@@ -44,36 +44,36 @@ func (app *serverApp) oauth2Config(scopes []string) *oauth2.Config {
 	}
 }
 
-func (app *serverApp) handleCliLogin(w http.ResponseWriter, r *http.Request) {
+func (app *serverApp) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
 	/*
 	   handles the get request from the client clicking the link they receive from the CLI
 	   this will grab the port and sets it as the state for later use
 	   we set the scopes to be openid, username, and groups so we get a jwt later with the needed info
 	   we then redirect to the login page with the necessary info.
 	*/
-	portState := r.FormValue("port")
+	portState := request.FormValue("port")
 	if portState == "" {
-		http.Error(w, "400 Bad Request", http.StatusBadRequest)
+		http.Error(writer, "400 Bad Request", http.StatusBadRequest)
 		return
 	}
 	var scopes []string
 	scopes = append(scopes, "openid", " https://claims.nordstrom.com/nauth/username ", " https://claims.nordstrom.com/nauth/groups ")
 	authCodeURL := app.oauth2Config(scopes).AuthCodeURL(portState)
-	http.Redirect(w, r, authCodeURL, http.StatusSeeOther)
+	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
-func getField(r *http.Request, fieldName string) string {
+func getField(request *http.Request, fieldName string) string {
 	/*
 	   used to grab the field from the callback request
 	*/
-	if r.FormValue(fieldName) != "" {
-		log.Print("fieldname: [" + r.FormValue(fieldName) + "]")
-		return r.FormValue(fieldName)
+	if request.FormValue(fieldName) != "" {
+		log.Print("fieldname: [" + request.FormValue(fieldName) + "]")
+		return request.FormValue(fieldName)
 	}
 	return ""
 }
 
-func jwtToString(claims json.RawMessage, w http.ResponseWriter) string {
+func jwtToString(claims json.RawMessage, writer http.ResponseWriter) string {
 	/*
 	   converts the jwt from bytes to a readable string
 	*/
@@ -82,7 +82,7 @@ func jwtToString(claims json.RawMessage, w http.ResponseWriter) string {
 	jwt, err := buff.ReadString('}')
 	if err != nil {
 		log.Print(err)
-		http.Error(w, fmt.Sprintf("Failed to transribe claims into string"), http.StatusInternalServerError)
+		http.Error(writer, fmt.Sprintf("Failed to transribe claims into string"), http.StatusInternalServerError)
 		return ""
 	}
 	return jwt
@@ -102,7 +102,7 @@ func jwtChecker(jwt string) bool {
 	return false
 }
 
-func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
+func (app *serverApp) callbackHandler(writer http.ResponseWriter, request *http.Request) {
 	/*
 	   handles the callback from the auth server, exchanges the authcode, clientID, clientSecret for a rawToken which holds an id_token
 	   field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
@@ -111,31 +111,31 @@ func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		err   error
 		token *oauth2.Token
 	)
-	contxt := oidc.ClientContext(r.Context(), app.client)
+	contxt := oidc.ClientContext(request.Context(), app.client)
 
 	oauth2Config := app.oauth2Config(nil)
-	authCode := getField(r, "code")
-	port := getField(r, "state")
+	authCode := getField(request, "code")
+	port := getField(request, "state")
 	if authCode == "" || port == "" {
-		http.Error(w, "400: Bad Request", http.StatusBadRequest)
+		http.Error(writer, "400: Bad Request", http.StatusBadRequest)
 	}
 
 	token, err = oauth2Config.Exchange(contxt, authCode)
 	if err != nil {
 		log.Print(err)
-		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
+		http.Error(writer, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
+		http.Error(writer, "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
 
-	idToken, err := app.verifier.Verify(r.Context(), rawIDToken)
+	idToken, err := app.verifier.Verify(request.Context(), rawIDToken)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to verify ID token"), http.StatusInternalServerError)
+		http.Error(writer, fmt.Sprintf("Failed to verify ID token"), http.StatusInternalServerError)
 		log.Print(err)
 		return
 	}
@@ -143,24 +143,24 @@ func (app *serverApp) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	var claims json.RawMessage
 	if claimErr := idToken.Claims(&claims); err != nil {
 		log.Print(claimErr)
-		http.Error(w, fmt.Sprintf("Failed to get claims from JWT"), http.StatusInternalServerError)
+		http.Error(writer, fmt.Sprintf("Failed to get claims from JWT"), http.StatusInternalServerError)
 		return
 	}
 
-	jwt := jwtToString(claims, w)
+	jwt := jwtToString(claims, writer)
 	validData := jwtChecker(jwt)
 	if validData {
 		log.Print("about to sendback")
-		sendBack(w, r, jwt, port)
+		sendBack(writer, request, jwt, port)
 		return
 	}
 	log.Print(jwt)
-	http.Error(w, fmt.Sprintf("Jwt does not contain necessary data"), http.StatusInternalServerError)
+	http.Error(writer, fmt.Sprintf("Jwt does not contain necessary data"), http.StatusInternalServerError)
 	return
 
 }
 
-func sendBack(w http.ResponseWriter, r *http.Request, jwt string, port string) {
+func sendBack(writer http.ResponseWriter, request *http.Request, jwt string, port string) {
 	/*
 	   this will take the jwt and pass it back to the client using the port given earlier and lastly redirect to the clients localhost
 	*/
@@ -170,16 +170,17 @@ func sendBack(w http.ResponseWriter, r *http.Request, jwt string, port string) {
 	log.Print("going to sendBack to this url: ", url)
 	resp, err := http.Post(url, "application/x-www-form-encoded", strings.NewReader(form.Encode()))
 	if resp.StatusCode != 200 || err != nil {
-		http.Error(w, "Couldnt post to url: ["+url+"]", http.StatusBadRequest)
+		http.Error(writer, "Couldnt post to url: ["+url+"]", http.StatusBadRequest)
 		return
 	}
-	http.Redirect(w, r, url, http.StatusSeeOther)
+	http.Redirect(writer, request, url, http.StatusSeeOther)
 }
 
-func localListener(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	body, _ := ioutil.ReadAll(r.Body)
+func localListener(writer http.ResponseWriter, request *http.Request) {
+	request.ParseForm()
+	body, _ := ioutil.ReadAll(request.Body)
 	log.Print(string(body))
+	fmt.Fprint(writer, "received a request")
 }
 
 func main() {

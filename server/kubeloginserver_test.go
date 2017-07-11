@@ -40,7 +40,6 @@ func TestSpecs(t *testing.T) {
 		incorrectPathServer := httptest.NewServer(http.HandlerFunc(incorrectURL))
 		cliGetTestServer := httptest.NewServer(http.HandlerFunc(app.handleCliLogin))
 		callbackItemsTestServer := httptest.NewServer(http.HandlerFunc(callbackItems))
-
 		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
 			response, _ := http.Get(incorrectPathServer.URL)
 			response.Body.Close()
