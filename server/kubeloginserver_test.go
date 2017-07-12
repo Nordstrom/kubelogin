@@ -116,5 +116,18 @@ func TestSpecs(t *testing.T) {
 			resp.Body.Close()
 			So(string(bodyBytes), ShouldEqual, "received a request")
 		})
+		Convey("This should test that the jwtToString function returns a string we can search", func() {
+			var w http.ResponseWriter
+			claims := []byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125}
+			testJwt := jwtToString(claims, w)
+			log.Print(testJwt)
+			So(testJwt, ShouldContainSubstring, "alg")
+		})
+		Convey("This should test that the jwtToString function fails because there is a missing } as the delimiting byte", func() {
+			var w http.ResponseWriter
+			claims := []byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34}
+			failedJwt := jwtToString(claims, w)
+			So(failedJwt, ShouldEqual, "EOF")
+		})
 	})
 }

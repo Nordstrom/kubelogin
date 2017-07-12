@@ -94,9 +94,9 @@ func jwtToString(claims json.RawMessage, writer http.ResponseWriter) string {
 	jwt, err := buff.ReadString('}')
 	if err != nil {
 		log.Print(err)
-		http.Error(writer, fmt.Sprintf("Failed to transribe claims into string"), http.StatusInternalServerError)
-		return ""
+		return err.Error()
 	}
+	log.Print(jwt)
 	return jwt
 }
 
