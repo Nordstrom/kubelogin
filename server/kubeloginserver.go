@@ -29,7 +29,7 @@ type authOClient struct {
 
 const (
 	idToken      = "id_token"
-	port         = "port"
+	portQuery    = "port"
 	state        = "state"
 	groups       = "groups"
 	username     = "username"
@@ -61,7 +61,7 @@ func (authClient *authOClient) getOAuth2Config(scopes []string) *oauth2.Config {
 */
 func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
 
-	portState := request.FormValue(port)
+	portState := request.FormValue(portQuery)
 	if portState == "" {
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
