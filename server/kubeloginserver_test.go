@@ -48,7 +48,7 @@ func TestSpecs(t *testing.T) {
 		})
 
 		Convey("The cliHandleLogin should get a status code 303 for a correct redirect", func() {
-			url := cliGetTestServer.URL + "/login/port?port=8000"
+			url := cliGetTestServer.URL + "/login?port=8000"
 			app.client = &http.Client{
 				CheckRedirect: func(req *http.Request, via []*http.Request) error {
 					return http.ErrUseLastResponse
@@ -61,7 +61,7 @@ func TestSpecs(t *testing.T) {
 			So(resp.StatusCode, ShouldEqual, 303)
 		})
 		Convey("If the port is missing the cliHandleLogin should return a 400 error", func() {
-			url := cliGetTestServer.URL + "/login/port?port="
+			url := cliGetTestServer.URL + "/login?port="
 			resp, _ := http.Get(url)
 			resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 400)

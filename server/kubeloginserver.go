@@ -227,7 +227,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/local", localListener)
 	mux.HandleFunc("/callback", authClient.callbackHandler)
-	mux.HandleFunc("/login/", authClient.handleCliLogin)
+	mux.HandleFunc("/login", authClient.handleCliLogin)
 	if err := http.ListenAndServe(":3000", mux); err != nil {
 		log.Fatal(err)
 	}
