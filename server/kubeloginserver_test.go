@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,13 +10,6 @@ import (
 	"github.com/coreos/go-oidc"
 	. "github.com/smartystreets/goconvey/convey"
 )
-
-func getFieldsTest(w http.ResponseWriter, r *http.Request) {
-	authCode := getField(r, "code")
-	state := getField(r, "state")
-	returnedItems := authCode + ", " + state
-	fmt.Fprint(w, returnedItems)
-}
 
 func incorrectURL(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "404 Page Not Found", http.StatusNotFound)
@@ -75,6 +67,12 @@ func TestServerSpecs(t *testing.T) {
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
 			So(string(bodyBytes), ShouldEqual, "got a jwt")
+		})
+		Convey("the redirect listener should return a message saying it's back at local", func() {
+			resp, _ := http.Get(unitTestServer.URL + "/redirect")
+			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
+			So(string(bodyBytes), ShouldEqual, "back at local")
 		})
 	})
 }

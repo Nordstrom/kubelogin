@@ -201,7 +201,7 @@ func localListener(writer http.ResponseWriter, request *http.Request) {
 }
 
 func redirectListener(writer http.ResponseWriter, request *http.Request) {
-	fmt.Fprint(writer, "back to local")
+	fmt.Fprint(writer, "back at local")
 }
 
 //sets up the struct for later use
