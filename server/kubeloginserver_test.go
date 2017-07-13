@@ -24,7 +24,7 @@ func incorrectURL(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "404 Page Not Found", http.StatusNotFound)
 }
 
-func TestSpecs(t *testing.T) {
+func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 
 		var app authOClient
@@ -64,24 +64,7 @@ func TestSpecs(t *testing.T) {
 				So(resp.StatusCode, ShouldEqual, 400)
 			})
 		})
-		Convey("getFields", func() {
-			url := unitTestServer.URL + "/callback?code=myawesomecode&state=8000"
-			newReq, _ := http.NewRequest("GET", url, nil)
 
-			Convey("returns the code field value from the url", func() {
-				result := getField(newReq, authCodeField)
-				So(result, ShouldEqual, "myawesomecode")
-			})
-			Convey("returns the state field value", func() {
-				result := getField(newReq, stateField)
-				So(result, ShouldEqual, "8000")
-			})
-			Convey("returns an empty string upon a missing field", func() {
-				result := getField(newReq, "helloworld")
-				So(result, ShouldEqual, "")
-			})
-
-		})
 		Convey("jwtChecker should return true upon the username, usernameSpec, and groups fields being present", func() {
 			testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
 			testResult := verifyJWT(testJwt)
@@ -129,5 +112,26 @@ func TestSpecs(t *testing.T) {
 				So(failedJwt, ShouldEqual, "EOF")
 			})
 		})
+	})
+}
+
+func TestGetField(t *testing.T) {
+	Convey("getFields", t, func() {
+		url := "localhost/callback?code=myawesomecode&state=8000"
+		newReq, _ := http.NewRequest("GET", url, nil)
+
+		Convey("returns the code field value from the url", func() {
+			result := getField(newReq, authCodeField)
+			So(result, ShouldEqual, "myawesomecode")
+		})
+		Convey("returns the state field value", func() {
+			result := getField(newReq, stateField)
+			So(result, ShouldEqual, "8000")
+		})
+		Convey("returns an empty string upon a missing field", func() {
+			result := getField(newReq, "helloworld")
+			So(result, ShouldEqual, "")
+		})
+
 	})
 }
