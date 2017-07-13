@@ -54,6 +54,22 @@ func TestServerSpecs(t *testing.T) {
 				So(resp.StatusCode, ShouldEqual, 400)
 			})
 		})
+		Convey("callbackHandler", func() {
+			Convey("should return a bad request if no code or state is in the url", func() {
+				url := unitTestServer.URL + "/callback"
+				request, _ := http.NewRequest("GET", url, nil)
+				response, _ := authClient.client.Do(request)
+				response.Body.Close()
+				So(response.StatusCode, ShouldEqual, http.StatusBadRequest)
+			})
+			Convey("should return a internal server error if the authcode is not valid", func() {
+				fakeCodeURL := unitTestServer.URL + "/callback?code=asdf123&state=3000"
+				request, _ := http.NewRequest("GET", fakeCodeURL, nil)
+				response, _ := authClient.client.Do(request)
+				response.Body.Close()
+				So(response.StatusCode, ShouldEqual, http.StatusInternalServerError)
+			})
+		})
 		Convey("the local listener should return a message saying that a jwt has been received", func() {
 			resp, _ := http.Get(unitTestServer.URL + "/local")
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)

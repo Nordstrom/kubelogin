@@ -42,7 +42,6 @@ const (
    the config for oauth2, scopes contain info we want back from the auth server
 */
 func (authClient *authOClient) getOAuth2Config(scopes []string) *oauth2.Config {
-	log.Print(authClient.provider)
 	return &oauth2.Config{
 		ClientID:     authClient.clientID,
 		ClientSecret: authClient.clientSecret,
@@ -109,9 +108,7 @@ func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, reques
 		return
 	}
 	var scopes = []string{"openid", " https://claims.nordstrom.com/nauth/username ", " https://claims.nordstrom.com/nauth/groups "}
-	testauthCodeURL := authClient.getOAuth2Config(scopes) //.AuthCodeURL(portState)
-	log.Print(testauthCodeURL)
-	authCodeURL := "http://localhost:3000"
+	authCodeURL := authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
@@ -131,6 +128,7 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	authCode := getField(request, authCodeField)
 	port := getField(request, stateField)
 	if authCode == "" || port == "" {
+		log.Print("authcode or port is missing")
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 	}
 
