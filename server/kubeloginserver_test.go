@@ -65,29 +65,19 @@ func TestSpecs(t *testing.T) {
 			})
 		})
 		Convey("getFields", func() {
+			url := unitTestServer.URL + "/callback?code=myawesomecode&state=8000"
+			newReq, _ := http.NewRequest("GET", url, nil)
 
-			Convey("should read the code field value", func() {
-				url := unitTestServer.URL + "/callback?code=myawesomecode&state=8000"
-				newReq, _ := http.NewRequest("GET", url, nil)
-				result := getField(newReq, "code")
+			Convey("returns the code field value from the url", func() {
+				result := getField(newReq, authCodeField)
 				So(result, ShouldEqual, "myawesomecode")
 			})
-			Convey("should read the state field value", func() {
-				url := unitTestServer.URL + "/callback?code=myawesomecode&state=8000"
-				newReq, _ := http.NewRequest("GET", url, nil)
-				result := getField(newReq, "state")
+			Convey("returns the state field value", func() {
+				result := getField(newReq, stateField)
 				So(result, ShouldEqual, "8000")
 			})
-			Convey("fails to read missing code field", func() {
-				url := unitTestServer.URL + "/callback?code=&state=8000"
-				newReq, _ := http.NewRequest("GET", url, nil)
-				result := getField(newReq, "code")
-				So(result, ShouldEqual, "")
-			})
-			Convey("fails to read missing state field", func() {
-				url := unitTestServer.URL + "/callback?code=myawesomecode&state="
-				newReq, _ := http.NewRequest("GET", url, nil)
-				result := getField(newReq, "state")
+			Convey("returns an empty string upon a missing field", func() {
+				result := getField(newReq, "helloworld")
 				So(result, ShouldEqual, "")
 			})
 
