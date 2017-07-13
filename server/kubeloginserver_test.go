@@ -54,34 +54,11 @@ func TestServerSpecs(t *testing.T) {
 				So(resp.StatusCode, ShouldEqual, 400)
 			})
 		})
-
-		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
-			provider := &oidc.Provider{}
-			testClient := authClientSetup("foo", "bar", provider)
-			correctID := testClient.clientID == "foo"
-			correctSec := testClient.clientSecret == "bar"
-			correctURI := testClient.redirectURI == "http://localhost:3000/callback"
-			correctClient := testClient.client == http.DefaultClient
-			overallCorrect := correctClient && correctID && correctSec && correctURI
-			So(overallCorrect, ShouldEqual, true)
-		})
 		Convey("the local listener should return a message saying that a jwt has been received", func() {
 			resp, _ := http.Get(unitTestServer.URL + "/local")
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
 			So(string(bodyBytes), ShouldEqual, "got a jwt")
-		})
-		Convey("Test that the jwtToString function returns a string we can search", func() {
-			var w http.ResponseWriter
-			claims := []byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125}
-			testJwt := jwtToString(claims, w)
-			So(testJwt, ShouldContainSubstring, "alg")
-
-			Convey("Test that the jwtToString function fails because there is a missing } as the delimiting byte", func() {
-				claims = []byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34}
-				failedJwt := jwtToString(claims, w)
-				So(failedJwt, ShouldEqual, "EOF")
-			})
 		})
 	})
 }
@@ -117,6 +94,36 @@ func TestVerifyJWT(t *testing.T) {
 		Convey("should return false if a field is missing", func() {
 			testResult = verifyJWT("nordy")
 			So(testResult, ShouldEqual, false)
+		})
+	})
+}
+
+func TestJwtToString(t *testing.T) {
+	Convey("jwtToString", t, func() {
+		var w http.ResponseWriter
+
+		Convey("returns a string if a valid byte array is given", func() {
+			testJwt := jwtToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125}, w)
+			So(testJwt, ShouldContainSubstring, "alg")
+		})
+		Convey("returns an EOF because there is a missing } as the delimiting byte", func() {
+			failedJwt := jwtToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34}, w)
+			So(failedJwt, ShouldEqual, "EOF")
+		})
+	})
+}
+
+func TestAuthClientSetup(t *testing.T) {
+	Convey("authClientSetup", t, func() {
+		provider := &oidc.Provider{}
+		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
+			testClient := authClientSetup("foo", "bar", provider)
+			correctID := testClient.clientID == "foo"
+			correctSec := testClient.clientSecret == "bar"
+			correctURI := testClient.redirectURI == "http://localhost:3000/callback"
+			correctClient := testClient.client == http.DefaultClient
+			overallCorrect := correctClient && correctID && correctSec && correctURI
+			So(overallCorrect, ShouldEqual, true)
 		})
 	})
 }
