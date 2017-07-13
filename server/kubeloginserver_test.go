@@ -27,28 +27,27 @@ func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 		provider := &oidc.Provider{}
 		authClient := authClientSetup("foo", "bar", provider)
-
 		unitTestServer := httptest.NewServer(getMux(authClient))
 		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
 			response, _ := http.Get(unitTestServer.URL)
 			response.Body.Close()
 			So(response.StatusCode, ShouldEqual, 404)
 		})
-
-		Convey("The cliHandleLogin should get a status code 303 for a correct redirect", func() {
-			url := unitTestServer.URL + "/login?port=8000"
-			authClient.client = &http.Client{
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
-				},
-			}
-			request, _ := http.NewRequest("GET", url, nil)
-			resp, _ := authClient.client.Do(request)
-			log.Print(resp.StatusCode)
-			resp.Body.Close()
-			So(resp.StatusCode, ShouldEqual, 303)
-
-			Convey("If the port is missing the cliHandleLogin should return a 400 error", func() {
+		Convey("The cliHandleLogin function", func() {
+			Convey("should get a status code 303 for a correct redirect", func() {
+				url := unitTestServer.URL + "/login?port=8000"
+				authClient.client = &http.Client{
+					CheckRedirect: func(req *http.Request, via []*http.Request) error {
+						return http.ErrUseLastResponse
+					},
+				}
+				request, _ := http.NewRequest("GET", url, nil)
+				resp, _ := authClient.client.Do(request)
+				log.Print(resp.StatusCode)
+				resp.Body.Close()
+				So(resp.StatusCode, ShouldEqual, 303)
+			})
+			Convey("should return a 400 error if the port is missing", func() {
 				url := unitTestServer.URL + "/login?port="
 				resp, _ := http.Get(url)
 				resp.Body.Close()
@@ -56,26 +55,6 @@ func TestServerSpecs(t *testing.T) {
 			})
 		})
 
-		Convey("jwtChecker should return true upon the username, usernameSpec, and groups fields being present", func() {
-			testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
-			testResult := verifyJWT(testJwt)
-			So(testResult, ShouldEqual, true)
-			Convey("jwtChecker should fail if the groups field is missing", func() {
-				testJwt = "https://claims.nordstrom.com/nauth/, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
-				testResult = verifyJWT(testJwt)
-				So(testResult, ShouldEqual, false)
-				Convey("jwtChecker should fail if the username field is missing", func() {
-					testJwt = "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/, @nordstrom.com"
-					testResult = verifyJWT(testJwt)
-					So(testResult, ShouldEqual, false)
-					Convey("jwtChecker should fail if the usernameSpec is missing/incorrect", func() {
-						testJwt = "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/, @nordy.com"
-						testResult = verifyJWT(testJwt)
-						So(testResult, ShouldEqual, false)
-					})
-				})
-			})
-		})
 		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
 			provider := &oidc.Provider{}
 			testClient := authClientSetup("foo", "bar", provider)
@@ -125,5 +104,19 @@ func TestGetField(t *testing.T) {
 			So(result, ShouldEqual, "")
 		})
 
+	})
+}
+
+func TestVerifyJWT(t *testing.T) {
+	Convey("verifyJwt", t, func() {
+		testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
+		testResult := verifyJWT(testJwt)
+		Convey("should return true upon the username, usernameSpec, and groups fields being present", func() {
+			So(testResult, ShouldEqual, true)
+		})
+		Convey("should return false if a field is missing", func() {
+			testResult = verifyJWT("nordy")
+			So(testResult, ShouldEqual, false)
+		})
 	})
 }
