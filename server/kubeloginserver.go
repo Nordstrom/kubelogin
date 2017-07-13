@@ -35,8 +35,6 @@ const (
 	username     = "username"
 	usernameSpec = "@nordstrom.com"
 	authCode     = "code"
-	clientID     = "CLIENT_ID"
-	clientSecret = "CLIENT_SEC"
 )
 
 /*
@@ -201,8 +199,8 @@ func localListener(writer http.ResponseWriter, request *http.Request) {
 //sets up the struct for later use
 func authClientSetup() authOClient {
 	var authClient authOClient
-	authClient.clientID = os.Getenv(clientID)
-	authClient.clientSecret = os.Getenv(clientSecret)
+	authClient.clientID = os.Getenv("CLIENT_ID")
+	authClient.clientSecret = os.Getenv("CLIENT_SEC")
 	authClient.redirectURI = "http://localhost:3000/callback"
 	authClient.client = http.DefaultClient
 	contxt := oidc.ClientContext(context.Background(), authClient.client)
