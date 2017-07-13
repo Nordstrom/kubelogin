@@ -130,38 +130,40 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	if authCode == "" || port == "" {
 		log.Print("authcode or port is missing")
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
 	}
 
 	token, err = oauth2Config.Exchange(contxt, authCode)
 	if err != nil {
-		log.Print(err)
+		log.Print("Error: "+err.Error()+"\n", contxt, "\n"+authCode)
 		http.Error(writer, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	rawIDToken, ok := token.Extra(idTokenField).(string)
 	if !ok {
+		log.Print("Failed inside ")
 		http.Error(writer, "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
 
 	idToken, err := authClient.verifier.Verify(request.Context(), rawIDToken)
 	if err != nil {
+		log.Print("Error verifying idToken: " + err.Error())
 		http.Error(writer, fmt.Sprintf("Failed to verify ID token"), http.StatusInternalServerError)
-		log.Print(err)
 		return
 	}
 
 	var claims json.RawMessage
 	if claimErr := idToken.Claims(&claims); err != nil {
-		log.Print(claimErr)
+		log.Print("Error getting claims from idToken: " + claimErr.Error())
 		http.Error(writer, fmt.Sprintf("Failed to get claims from JWT"), http.StatusInternalServerError)
 		return
 	}
 
 	jwt := jwtToString(claims, writer)
 	if !verifyJWT(jwt) {
-		log.Print(jwt)
+		log.Print("Failed to verify jwt: " + jwt)
 		http.Error(writer, fmt.Sprintf("JWT Verification Failed"), http.StatusInternalServerError)
 		return
 	}
@@ -182,6 +184,7 @@ func sendBackToClient(writer http.ResponseWriter, request *http.Request, jwt str
 	resp, err := http.Post(postURL, "application/x-www-form-encoded", strings.NewReader(form.Encode()))
 	log.Print(resp.StatusCode)
 	if resp.StatusCode != 200 || err != nil {
+		log.Print("Error inside of sendBackToClient")
 		http.Error(writer, "Couldnt post to url: ["+postURL+"]", http.StatusBadRequest)
 		return
 	}
