@@ -188,6 +188,7 @@ func sendBackToClient(writer http.ResponseWriter, request *http.Request, jwt str
 		return
 	}
 	http.Redirect(writer, request, redirectURL, http.StatusSeeOther)
+	return
 }
 
 //this belongs on CLI side but for testing purposes will be here
