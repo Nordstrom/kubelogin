@@ -5,14 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/coreos/go-oidc"
-	"golang.org/x/oauth2"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/coreos/go-oidc"
+	"golang.org/x/oauth2"
 )
 
 /*
@@ -41,7 +42,7 @@ const (
    the config for oauth2, scopes contain info we want back from the auth server
 */
 func (authClient *authOClient) getOAuth2Config(scopes []string) *oauth2.Config {
-
+	log.Print(authClient.provider)
 	return &oauth2.Config{
 		ClientID:     authClient.clientID,
 		ClientSecret: authClient.clientSecret,
@@ -108,7 +109,9 @@ func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, reques
 		return
 	}
 	var scopes = []string{"openid", " https://claims.nordstrom.com/nauth/username ", " https://claims.nordstrom.com/nauth/groups "}
-	authCodeURL := authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
+	testauthCodeURL := authClient.getOAuth2Config(scopes) //.AuthCodeURL(portState)
+	log.Print(testauthCodeURL)
+	authCodeURL := "http://localhost:3000"
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
@@ -200,17 +203,12 @@ func redirectListener(writer http.ResponseWriter, request *http.Request) {
 }
 
 //sets up the struct for later use
-func authClientSetup() authOClient {
+func authClientSetup(clientID string, clientSecret string, provider *oidc.Provider) authOClient {
 	var authClient authOClient
-	authClient.clientID = os.Getenv("CLIENT_ID")
-	authClient.clientSecret = os.Getenv("CLIENT_SEC")
+	authClient.clientID = clientID
+	authClient.clientSecret = clientSecret
 	authClient.redirectURI = "http://localhost:3000/callback"
 	authClient.client = http.DefaultClient
-	contxt := oidc.ClientContext(context.Background(), authClient.client)
-	provider, err := oidc.NewProvider(contxt, "https://nauth-test.auth0.com/")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
-	}
 	authClient.provider = provider
 	authClient.verifier = provider.Verifier(&oidc.Config{ClientID: authClient.clientID})
 	return authClient
@@ -231,7 +229,12 @@ func getMux(authClient authOClient) *http.ServeMux {
    the struct to contain necessary information
 */
 func main() {
-	if err := http.ListenAndServe(":3000", getMux(authClientSetup())); err != nil {
+	contxt := oidc.ClientContext(context.Background(), http.DefaultClient)
+	provider, err := oidc.NewProvider(contxt, "https://nauth-test.auth0.com/")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
+	}
+	if err := http.ListenAndServe(":3000", getMux(authClientSetup(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SEC"), provider))); err != nil {
 		log.Fatal(err)
 	}
 }

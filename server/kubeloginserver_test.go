@@ -1,16 +1,15 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"github.com/coreos/go-oidc"
-	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
+
+	"github.com/coreos/go-oidc"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func getFieldsTest(w http.ResponseWriter, r *http.Request) {
@@ -26,18 +25,10 @@ func incorrectURL(w http.ResponseWriter, r *http.Request) {
 
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
+		provider := &oidc.Provider{}
+		authClient := authClientSetup("foo", "bar", provider)
 
-		var app authOClient
-		app.clientID = "myawesomeid"
-		app.clientSecret = "myawesomesecret"
-		app.redirectURI = "http://localhost:3000/callback"
-		app.client = http.DefaultClient
-		contxt := oidc.ClientContext(context.Background(), app.client)
-		provider, _ := oidc.NewProvider(contxt, "https://nauth-test.auth0.com/")
-		app.provider = provider
-		//app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
-
-		unitTestServer := httptest.NewServer(getMux(app))
+		unitTestServer := httptest.NewServer(getMux(authClient))
 		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
 			response, _ := http.Get(unitTestServer.URL)
 			response.Body.Close()
@@ -46,13 +37,13 @@ func TestServerSpecs(t *testing.T) {
 
 		Convey("The cliHandleLogin should get a status code 303 for a correct redirect", func() {
 			url := unitTestServer.URL + "/login?port=8000"
-			app.client = &http.Client{
+			authClient.client = &http.Client{
 				CheckRedirect: func(req *http.Request, via []*http.Request) error {
 					return http.ErrUseLastResponse
 				},
 			}
 			request, _ := http.NewRequest("GET", url, nil)
-			resp, _ := app.client.Do(request)
+			resp, _ := authClient.client.Do(request)
 			log.Print(resp.StatusCode)
 			resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 303)
@@ -86,9 +77,10 @@ func TestServerSpecs(t *testing.T) {
 			})
 		})
 		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
-			testClient := authClientSetup()
-			correctID := testClient.clientID == os.Getenv("CLIENT_ID")
-			correctSec := testClient.clientSecret == os.Getenv("CLIENT_SEC")
+			provider := &oidc.Provider{}
+			testClient := authClientSetup("foo", "bar", provider)
+			correctID := testClient.clientID == "foo"
+			correctSec := testClient.clientSecret == "bar"
 			correctURI := testClient.redirectURI == "http://localhost:3000/callback"
 			correctClient := testClient.client == http.DefaultClient
 			overallCorrect := correctClient && correctID && correctSec && correctURI
