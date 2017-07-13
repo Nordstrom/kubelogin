@@ -37,18 +37,15 @@ func TestSpecs(t *testing.T) {
 		app.provider = provider
 		//app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
 
-		localTest := httptest.NewServer(http.HandlerFunc(localListener))
-		incorrectPathServer := httptest.NewServer(http.HandlerFunc(incorrectURL))
-		cliGetTestServer := httptest.NewServer(http.HandlerFunc(app.handleCliLogin))
-		callbackItemsTestServer := httptest.NewServer(http.HandlerFunc(getFieldsTest))
+		unitTestServer := httptest.NewServer(getMux(app))
 		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
-			response, _ := http.Get(incorrectPathServer.URL)
+			response, _ := http.Get(unitTestServer.URL)
 			response.Body.Close()
 			So(response.StatusCode, ShouldEqual, 404)
 		})
 
 		Convey("The cliHandleLogin should get a status code 303 for a correct redirect", func() {
-			url := cliGetTestServer.URL + "/login?port=8000"
+			url := unitTestServer.URL + "/login?port=8000"
 			app.client = &http.Client{
 				CheckRedirect: func(req *http.Request, via []*http.Request) error {
 					return http.ErrUseLastResponse
@@ -61,36 +58,39 @@ func TestSpecs(t *testing.T) {
 			So(resp.StatusCode, ShouldEqual, 303)
 
 			Convey("If the port is missing the cliHandleLogin should return a 400 error", func() {
-				url := cliGetTestServer.URL + "/login?port="
+				url := unitTestServer.URL + "/login?port="
 				resp, _ := http.Get(url)
 				resp.Body.Close()
 				So(resp.StatusCode, ShouldEqual, 400)
 			})
 		})
-		Convey("getFields should read the code and state field values", func() {
-			url := callbackItemsTestServer.URL + "/callback?code=myawesomecode&state=8000"
-			resp, _ := http.Get(url)
-			responseData, _ := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
-			bodyString := string(responseData)
-			So(bodyString, ShouldEqual, "myawesomecode, 8000")
+		Convey("getFields", func() {
 
-			Convey("getFields should fail to read missing code field", func() {
-				url := callbackItemsTestServer.URL + "/callback?code=&state=8000"
-				resp, _ := http.Get(url)
-				responseData, _ := ioutil.ReadAll(resp.Body)
-				resp.Body.Close()
-				bodyString := string(responseData)
-				So(bodyString, ShouldEqual, ", 8000")
-				Convey("getFields should fail to read missing state field", func() {
-					url = callbackItemsTestServer.URL + "/callback?code=myawesomecode&state="
-					resp, _ = http.Get(url)
-					responseData, _ = ioutil.ReadAll(resp.Body)
-					resp.Body.Close()
-					bodyString = string(responseData)
-					So(bodyString, ShouldEqual, "myawesomecode, ")
-				})
+			Convey("should read the code field value", func() {
+				url := unitTestServer.URL + "/callback?code=myawesomecode&state=8000"
+				newReq, _ := http.NewRequest("GET", url, nil)
+				result := getField(newReq, "code")
+				So(result, ShouldEqual, "myawesomecode")
 			})
+			Convey("should read the state field value", func() {
+				url := unitTestServer.URL + "/callback?code=myawesomecode&state=8000"
+				newReq, _ := http.NewRequest("GET", url, nil)
+				result := getField(newReq, "state")
+				So(result, ShouldEqual, "8000")
+			})
+			Convey("fails to read missing code field", func() {
+				url := unitTestServer.URL + "/callback?code=&state=8000"
+				newReq, _ := http.NewRequest("GET", url, nil)
+				result := getField(newReq, "code")
+				So(result, ShouldEqual, "")
+			})
+			Convey("fails to read missing state field", func() {
+				url := unitTestServer.URL + "/callback?code=myawesomecode&state="
+				newReq, _ := http.NewRequest("GET", url, nil)
+				result := getField(newReq, "state")
+				So(result, ShouldEqual, "")
+			})
+
 		})
 		Convey("jwtChecker should return true upon the username, usernameSpec, and groups fields being present", func() {
 			testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
@@ -122,7 +122,7 @@ func TestSpecs(t *testing.T) {
 			So(overallCorrect, ShouldEqual, true)
 		})
 		Convey("the local listener should return a message saying that a jwt has been received", func() {
-			resp, _ := http.Get(localTest.URL)
+			resp, _ := http.Get(unitTestServer.URL + "/local")
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
 			So(string(bodyBytes), ShouldEqual, "got a jwt")
