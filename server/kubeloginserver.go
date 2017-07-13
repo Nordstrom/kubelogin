@@ -28,13 +28,13 @@ type authOClient struct {
 }
 
 const (
-	idToken      = "id_token"
-	portQuery    = "port"
-	state        = "state"
-	groups       = "groups"
-	username     = "username"
-	usernameSpec = "@nordstrom.com"
-	authCode     = "code"
+	idTokenField  = "id_token"
+	portField     = "port"
+	stateField    = "state"
+	groupsField   = "groups"
+	usernameField = "username"
+	usernameSpec  = "@nordstrom.com"
+	authCodeField = "code"
 )
 
 /*
@@ -49,25 +49,6 @@ func (authClient *authOClient) getOAuth2Config(scopes []string) *oauth2.Config {
 		Scopes:       scopes,
 		RedirectURL:  authClient.redirectURI,
 	}
-}
-
-/*
-   handles the get request from the client clicking the link they receive from the CLI
-   this will grab the port and sets it as the state for later use
-   we set the scopes to be openid, username, and groups so we get a jwt later with the needed info
-   we then redirect to the login page with the necessary info.
-*/
-func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
-
-	portState := request.FormValue(portQuery)
-	if portState == "" {
-		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-	var scopes []string
-	scopes = append(scopes, "openid", " https://claims.nordstrom.com/nauth/username ", " https://claims.nordstrom.com/nauth/groups ")
-	authCodeURL := authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
-	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
 /*
@@ -103,14 +84,32 @@ func jwtToString(claims json.RawMessage, writer http.ResponseWriter) string {
 */
 func verifyJWT(jwt string) bool {
 
-	groups := strings.Contains(jwt, groups)
-	username := strings.Contains(jwt, username)
+	groups := strings.Contains(jwt, groupsField)
+	username := strings.Contains(jwt, usernameField)
 	validUsername := strings.Contains(jwt, usernameSpec)
 	log.Print(groups, validUsername, username)
 	if groups && username && validUsername {
 		return true
 	}
 	return false
+}
+
+/*
+   handles the get request from the client clicking the link they receive from the CLI
+   this will grab the port and sets it as the state for later use
+   we set the scopes to be openid, username, and groups so we get a jwt later with the needed info
+   we then redirect to the login page with the necessary info.
+*/
+func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
+
+	portState := request.FormValue(portField)
+	if portState == "" {
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	var scopes = []string{"openid", " https://claims.nordstrom.com/nauth/username ", " https://claims.nordstrom.com/nauth/groups "}
+	authCodeURL := authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
+	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
 /*
@@ -126,8 +125,8 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	contxt := oidc.ClientContext(request.Context(), authClient.client)
 
 	oauth2Config := authClient.getOAuth2Config(nil)
-	authCode := getField(request, authCode)
-	port := getField(request, state)
+	authCode := getField(request, authCodeField)
+	port := getField(request, stateField)
 	if authCode == "" || port == "" {
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 	}
@@ -139,7 +138,7 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 		return
 	}
 
-	rawIDToken, ok := token.Extra(idToken).(string)
+	rawIDToken, ok := token.Extra(idTokenField).(string)
 	if !ok {
 		http.Error(writer, "no id_token in token response", http.StatusInternalServerError)
 		return
@@ -160,15 +159,13 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	}
 
 	jwt := jwtToString(claims, writer)
-	validJWT := verifyJWT(jwt)
-	if validJWT {
-		sendBackToClient(writer, request, jwt, port)
+	if !verifyJWT(jwt) {
+		log.Print(jwt)
+		http.Error(writer, fmt.Sprintf("JWT Verification Failed"), http.StatusInternalServerError)
 		return
 	}
-	log.Print(jwt)
-	http.Error(writer, fmt.Sprintf("JWT Verification Failed"), http.StatusInternalServerError)
+	sendBackToClient(writer, request, jwt, port)
 	return
-
 }
 
 /*
@@ -178,22 +175,28 @@ func sendBackToClient(writer http.ResponseWriter, request *http.Request, jwt str
 
 	form := url.Values{}
 	form.Add("jwt", jwt)
-	url := "http://localhost:" + port + "/local"
-	log.Print("going to sendBack to this url: ", url)
-	resp, err := http.Post(url, "application/x-www-form-encoded", strings.NewReader(form.Encode()))
+	postURL := "http://localhost:" + port + "/local"
+	redirectURL := "http://localhost:" + port + "/redirect"
+	log.Print("going to sendBack to this url: ", postURL)
+	resp, err := http.Post(postURL, "application/x-www-form-encoded", strings.NewReader(form.Encode()))
+	log.Print(resp.StatusCode)
 	if resp.StatusCode != 200 || err != nil {
-		http.Error(writer, "Couldnt post to url: ["+url+"]", http.StatusBadRequest)
+		http.Error(writer, "Couldnt post to url: ["+postURL+"]", http.StatusBadRequest)
 		return
 	}
-	http.Redirect(writer, request, url, http.StatusSeeOther)
+	http.Redirect(writer, request, redirectURL, http.StatusSeeOther)
 }
 
 //this belongs on CLI side but for testing purposes will be here
 func localListener(writer http.ResponseWriter, request *http.Request) {
 	request.ParseForm()
 	body, _ := ioutil.ReadAll(request.Body)
-	log.Print(string(body))
-	fmt.Fprint(writer, "received a request")
+	log.Print("body of request: ", string(body))
+	fmt.Fprint(writer, "got a jwt")
+}
+
+func redirectListener(writer http.ResponseWriter, request *http.Request) {
+	fmt.Fprint(writer, "back to local")
 }
 
 //sets up the struct for later use
@@ -213,20 +216,22 @@ func authClientSetup() authOClient {
 	return authClient
 }
 
+func getMux(authClient authOClient) *http.ServeMux {
+	newMux := http.NewServeMux()
+	newMux.HandleFunc("/local", localListener)
+	newMux.HandleFunc("/redirect", redirectListener)
+	newMux.HandleFunc("/callback", authClient.callbackHandler)
+	newMux.HandleFunc("/login", authClient.handleCliLogin)
+	return newMux
+}
+
 /*
    sets up a new mux. upon a user clicking the link to our server, it will be handled by the handleLogin function.
    When the auth server posts to our server it will be controlled by the callbackHandler. This is also initial setup for
    the struct to contain necessary information
 */
 func main() {
-
-	authClient := authClientSetup()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/local", localListener)
-	mux.HandleFunc("/callback", authClient.callbackHandler)
-	mux.HandleFunc("/login", authClient.handleCliLogin)
-	if err := http.ListenAndServe(":3000", mux); err != nil {
+	if err := http.ListenAndServe(":3000", getMux(authClientSetup())); err != nil {
 		log.Fatal(err)
 	}
 }

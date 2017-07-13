@@ -35,7 +35,7 @@ func TestSpecs(t *testing.T) {
 		contxt := oidc.ClientContext(context.Background(), app.client)
 		provider, _ := oidc.NewProvider(contxt, "https://nauth-test.auth0.com/")
 		app.provider = provider
-		app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
+		//app.verifier = provider.Verifier(&oidc.Config{ClientID: app.clientID})
 
 		localTest := httptest.NewServer(http.HandlerFunc(localListener))
 		incorrectPathServer := httptest.NewServer(http.HandlerFunc(incorrectURL))
@@ -59,49 +59,60 @@ func TestSpecs(t *testing.T) {
 			log.Print(resp.StatusCode)
 			resp.Body.Close()
 			So(resp.StatusCode, ShouldEqual, 303)
-		})
-		Convey("If the port is missing the cliHandleLogin should return a 400 error", func() {
-			url := cliGetTestServer.URL + "/login?port="
-			resp, _ := http.Get(url)
-			resp.Body.Close()
-			So(resp.StatusCode, ShouldEqual, 400)
-		})
 
-		Convey("getFields should read correct field values", func() {
+			Convey("If the port is missing the cliHandleLogin should return a 400 error", func() {
+				url := cliGetTestServer.URL + "/login?port="
+				resp, _ := http.Get(url)
+				resp.Body.Close()
+				So(resp.StatusCode, ShouldEqual, 400)
+			})
+		})
+		Convey("getFields should read the code and state field values", func() {
 			url := callbackItemsTestServer.URL + "/callback?code=myawesomecode&state=8000"
 			resp, _ := http.Get(url)
 			responseData, _ := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
 			bodyString := string(responseData)
 			So(bodyString, ShouldEqual, "myawesomecode, 8000")
+
+			Convey("getFields should fail to read missing code field", func() {
+				url := callbackItemsTestServer.URL + "/callback?code=&state=8000"
+				resp, _ := http.Get(url)
+				responseData, _ := ioutil.ReadAll(resp.Body)
+				resp.Body.Close()
+				bodyString := string(responseData)
+				So(bodyString, ShouldEqual, ", 8000")
+				Convey("getFields should fail to read missing state field", func() {
+					url = callbackItemsTestServer.URL + "/callback?code=myawesomecode&state="
+					resp, _ = http.Get(url)
+					responseData, _ = ioutil.ReadAll(resp.Body)
+					resp.Body.Close()
+					bodyString = string(responseData)
+					So(bodyString, ShouldEqual, "myawesomecode, ")
+				})
+			})
 		})
-		Convey("getFields should fail to read missing code field", func() {
-			url := callbackItemsTestServer.URL + "/callback?code=&state=8000"
-			resp, _ := http.Get(url)
-			responseData, _ := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
-			bodyString := string(responseData)
-			So(bodyString, ShouldEqual, ", 8000")
-		})
-		Convey("getFields should fail to read missing state field", func() {
-			url := callbackItemsTestServer.URL + "/callback?code=myawesomecode&state="
-			resp, _ := http.Get(url)
-			responseData, _ := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
-			bodyString := string(responseData)
-			So(bodyString, ShouldEqual, "myawesomecode, ")
-		})
-		Convey("jwtChecker should return true upon the necessary fields being present", func() {
+		Convey("jwtChecker should return true upon the username, usernameSpec, and groups fields being present", func() {
 			testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
 			testResult := verifyJWT(testJwt)
 			So(testResult, ShouldEqual, true)
+			Convey("jwtChecker should fail if the groups field is missing", func() {
+				testJwt = "https://claims.nordstrom.com/nauth/, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
+				testResult = verifyJWT(testJwt)
+				So(testResult, ShouldEqual, false)
+				Convey("jwtChecker should fail if the username field is missing", func() {
+					testJwt = "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/, @nordstrom.com"
+					testResult = verifyJWT(testJwt)
+					So(testResult, ShouldEqual, false)
+					Convey("jwtChecker should fail if the usernameSpec is missing/incorrect", func() {
+						testJwt = "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/, @nordy.com"
+						testResult = verifyJWT(testJwt)
+						So(testResult, ShouldEqual, false)
+					})
+				})
+			})
 		})
-		Convey("jwtChecker should fail if necessary data is missing", func() {
-			testJwt := "https://claims.nordstrom.com/nauth/, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
-			testResult := verifyJWT(testJwt)
-			So(testResult, ShouldEqual, false)
-		})
-		Convey("authClientSetup should return a serverApp struct with necessary info filled in", func() {
+		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
 			testClient := authClientSetup()
 			correctID := testClient.clientID == os.Getenv("CLIENT_ID")
 			correctSec := testClient.clientSecret == os.Getenv("CLIENT_SEC")
@@ -110,24 +121,23 @@ func TestSpecs(t *testing.T) {
 			overallCorrect := correctClient && correctID && correctSec && correctURI
 			So(overallCorrect, ShouldEqual, true)
 		})
-		Convey("the local listener should return a message saying that a reqeust has been received", func() {
+		Convey("the local listener should return a message saying that a jwt has been received", func() {
 			resp, _ := http.Get(localTest.URL)
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
-			So(string(bodyBytes), ShouldEqual, "received a request")
+			So(string(bodyBytes), ShouldEqual, "got a jwt")
 		})
-		Convey("This should test that the jwtToString function returns a string we can search", func() {
+		Convey("Test that the jwtToString function returns a string we can search", func() {
 			var w http.ResponseWriter
 			claims := []byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125}
 			testJwt := jwtToString(claims, w)
-			log.Print(testJwt)
 			So(testJwt, ShouldContainSubstring, "alg")
-		})
-		Convey("This should test that the jwtToString function fails because there is a missing } as the delimiting byte", func() {
-			var w http.ResponseWriter
-			claims := []byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34}
-			failedJwt := jwtToString(claims, w)
-			So(failedJwt, ShouldEqual, "EOF")
+
+			Convey("Test that the jwtToString function fails because there is a missing } as the delimiting byte", func() {
+				claims = []byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34}
+				failedJwt := jwtToString(claims, w)
+				So(failedJwt, ShouldEqual, "EOF")
+			})
 		})
 	})
 }
