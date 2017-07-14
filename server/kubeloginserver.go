@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -181,18 +180,6 @@ func generateSendBackURL(jwt string, port string) string {
 	return sendBackURL
 }
 
-//this belongs on CLI side but for testing purposes will be here
-func localListener(writer http.ResponseWriter, request *http.Request) {
-	request.ParseForm()
-	body, _ := ioutil.ReadAll(request.Body)
-	log.Print("body of request: ", string(body))
-	fmt.Fprint(writer, "got a jwt")
-}
-
-func redirectListener(writer http.ResponseWriter, request *http.Request) {
-	fmt.Fprint(writer, "back at local")
-}
-
 //sets up the struct for later use
 func authClientSetup(clientID string, clientSecret string, provider *oidc.Provider) authOClient {
 	var authClient authOClient
@@ -207,8 +194,6 @@ func authClientSetup(clientID string, clientSecret string, provider *oidc.Provid
 
 func getMux(authClient authOClient) *http.ServeMux {
 	newMux := http.NewServeMux()
-	newMux.HandleFunc("/local", localListener)
-	newMux.HandleFunc("/redirect", redirectListener)
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
 	newMux.HandleFunc("/login", authClient.handleCliLogin)
 	return newMux

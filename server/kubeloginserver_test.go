@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -61,18 +60,6 @@ func TestServerSpecs(t *testing.T) {
 				response.Body.Close()
 				So(response.StatusCode, ShouldEqual, http.StatusInternalServerError)
 			})
-		})
-		Convey("the local listener should return a message saying that a jwt has been received", func() {
-			resp, _ := http.Get(unitTestServer.URL + "/local")
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
-			So(string(bodyBytes), ShouldEqual, "got a jwt")
-		})
-		Convey("the redirect listener should return a message saying it's back at local", func() {
-			resp, _ := http.Get(unitTestServer.URL + "/redirect")
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
-			So(string(bodyBytes), ShouldEqual, "back at local")
 		})
 	})
 }
