@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 
@@ -135,7 +134,7 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 
 	token, err = oauth2Config.Exchange(contxt, authCode)
 	if err != nil {
-		log.Print("Error: "+err.Error()+"\n", contxt, "\n"+authCode)
+		log.Print("Error: " + err.Error() + "\n" + authCode)
 		http.Error(writer, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -167,29 +166,19 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 		http.Error(writer, fmt.Sprintf("JWT Verification Failed"), http.StatusInternalServerError)
 		return
 	}
-	sendBackToClient(writer, request, jwt, port)
+
+	sendBackURL := generateSendBackURL(jwt, port)
+	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
 	return
 }
 
 /*
-   this will take the jwt and pass it back to the client using the port given earlier and lastly redirect to the clients localhost
+   this will take the jwt and port and generate the url that will be redirected to
 */
-func sendBackToClient(writer http.ResponseWriter, request *http.Request, jwt string, port string) {
+func generateSendBackURL(jwt string, port string) string {
 
-	form := url.Values{}
-	form.Add("jwt", jwt)
-	postURL := "http://localhost:" + port + "/local"
-	redirectURL := "http://localhost:" + port + "/redirect"
-	log.Print("going to sendBack to this url: ", postURL)
-	resp, err := http.Post(postURL, "application/x-www-form-encoded", strings.NewReader(form.Encode()))
-	log.Print(resp.StatusCode)
-	if resp.StatusCode != 200 || err != nil {
-		log.Print("Error inside of sendBackToClient")
-		http.Error(writer, "Couldnt post to url: ["+postURL+"]", http.StatusBadRequest)
-		return
-	}
-	http.Redirect(writer, request, redirectURL, http.StatusSeeOther)
-	return
+	sendBackURL := "http://localhost:" + port + "/client?jwt=" + jwt
+	return sendBackURL
 }
 
 //this belongs on CLI side but for testing purposes will be here
