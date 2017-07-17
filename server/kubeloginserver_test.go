@@ -102,22 +102,23 @@ func TestVerifyJWT(t *testing.T) {
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
 		Convey("should generate a url containing localhost and the port the client sent which contains the jwt as a query parameter", func() {
-			testSendBackURL := generateSendBackURL("myawesomejwt", "3000")
-			So(testSendBackURL, ShouldEqual, "http://localhost:3000/client?jwt=myawesomejwt")
+			nullToken := &oidc.IDToken{}
+			testSendBackURL, err := generateSendBackURL(nullToken, "3000")
+			log.Print(err)
+			So(testSendBackURL, ShouldEqual, "")
 		})
 	})
 }
 
 func TestJwtToString(t *testing.T) {
 	Convey("jwtToString", t, func() {
-		var w http.ResponseWriter
 
 		Convey("returns a string if a valid byte array is given", func() {
-			testJwt := jwtToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125}, w)
+			testJwt := jwtToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125})
 			So(testJwt, ShouldContainSubstring, "alg")
 		})
 		Convey("returns an EOF because there is a missing } as the delimiting byte", func() {
-			failedJwt := jwtToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34}, w)
+			failedJwt := jwtToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34})
 			So(failedJwt, ShouldEqual, "EOF")
 		})
 	})

@@ -64,7 +64,7 @@ func getField(request *http.Request, fieldName string) string {
 /*
    converts the jwt from bytes to a readable string
 */
-func jwtToString(claims json.RawMessage, writer http.ResponseWriter) string {
+func jwtToString(claims json.RawMessage) string {
 
 	buff := new(bytes.Buffer)
 	json.Indent(buff, []byte(claims), "", "  ")
@@ -110,63 +110,49 @@ func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, reques
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
-/*
-   handles the callback from the auth server, exchanges the authcode, clientID, clientSecret for a rawToken which holds an id_token
-   field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
-*/
-func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, request *http.Request) {
-
+func (authClient *authOClient) doAuthDance(requestContext context.Context, authCode string) (*oidc.IDToken, error) {
 	var (
 		err   error
 		token *oauth2.Token
 	)
-	contxt := oidc.ClientContext(request.Context(), authClient.client)
-
-	oauth2Config := authClient.getOAuth2Config(nil)
-	authCode := getField(request, authCodeField)
-	port := getField(request, stateField)
-	if authCode == "" || port == "" {
-		log.Print("authcode or port is missing")
-		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
-	token, err = oauth2Config.Exchange(contxt, authCode)
+	nullToken := &oidc.IDToken{}
+	oidcClientContext := oidc.ClientContext(requestContext, authClient.client)
+	token, err = authClient.getOAuth2Config(nil).Exchange(oidcClientContext, authCode)
 	if err != nil {
 		log.Print("Error: " + err.Error() + "\n" + authCode)
-		http.Error(writer, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
-		return
+		return nullToken, err
 	}
 
 	rawIDToken, ok := token.Extra(idTokenField).(string)
 	if !ok {
 		log.Print("Failed inside ")
-		http.Error(writer, "no id_token in token response", http.StatusInternalServerError)
+		return nullToken, err
+	}
+	return authClient.verifier.Verify(requestContext, rawIDToken)
+}
+
+/*
+   handles the callback from the auth server, exchanges the authcode, clientID, clientSecret for a rawToken which holds an id_token
+   field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
+*/
+func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, request *http.Request) {
+	authCode := getField(request, authCodeField)
+	port := getField(request, stateField)
+	if authCode == "" || port == "" {
+		log.Print("Error! Need authcode and port. Received: ", authCode, port)
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-
-	idToken, err := authClient.verifier.Verify(request.Context(), rawIDToken)
+	idToken, err := authClient.doAuthDance(request.Context(), authCode)
 	if err != nil {
 		log.Print("Error verifying idToken: " + err.Error())
 		http.Error(writer, fmt.Sprintf("Failed to verify ID token"), http.StatusInternalServerError)
 		return
 	}
-
-	var claims json.RawMessage
-	if claimErr := idToken.Claims(&claims); err != nil {
-		log.Print("Error getting claims from idToken: " + claimErr.Error())
-		http.Error(writer, fmt.Sprintf("Failed to get claims from JWT"), http.StatusInternalServerError)
-		return
+	sendBackURL, err := generateSendBackURL(idToken, port)
+	if err != nil {
+		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
 	}
-
-	jwt := jwtToString(claims, writer)
-	if !verifyJWT(jwt) {
-		log.Print("Failed to verify jwt: " + jwt)
-		http.Error(writer, fmt.Sprintf("JWT Verification Failed"), http.StatusInternalServerError)
-		return
-	}
-
-	sendBackURL := generateSendBackURL(jwt, port)
 	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
 	return
 }
@@ -174,10 +160,22 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 /*
    this will take the jwt and port and generate the url that will be redirected to
 */
-func generateSendBackURL(jwt string, port string) string {
+func generateSendBackURL(rawJWT *oidc.IDToken, port string) (string, error) {
+	var err error
+	var claims json.RawMessage
+	if claimErr := rawJWT.Claims(&claims); err != nil {
+		log.Print("Error getting claims from idToken: " + claimErr.Error())
+		return "", claimErr
+	}
+
+	jwt := jwtToString(claims)
+	if !verifyJWT(jwt) {
+		log.Print("Error! Failed to verify jwt: " + jwt)
+		return "", err
+	}
 
 	sendBackURL := "http://localhost:" + port + "/client?jwt=" + jwt
-	return sendBackURL
+	return sendBackURL, nil
 }
 
 //sets up the struct for later use
