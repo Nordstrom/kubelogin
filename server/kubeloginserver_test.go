@@ -101,7 +101,7 @@ func TestVerifyJWT(t *testing.T) {
 
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
-		Convey("should generate a url containing localhost and the port the client sent which contains the jwt as a query parameter", func() {
+		Convey("should generate an error due to the token not containing a claims field", func() {
 			nullToken := &oidc.IDToken{}
 			testSendBackURL, err := generateSendBackURL(nullToken, "3000", "usernameSpec")
 			log.Print(err)
