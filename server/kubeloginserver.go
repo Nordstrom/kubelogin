@@ -163,9 +163,8 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
    this will take the jwt and port and generate the url that will be redirected to
 */
 func generateSendBackURL(rawJWT *oidc.IDToken, port string, usernameSpec string) (string, error) {
-	var err error
 	var claims json.RawMessage
-	if claimErr := rawJWT.Claims(&claims); err != nil {
+	if claimErr := rawJWT.Claims(&claims); claimErr != nil {
 		log.Print("Error getting claims from idToken: " + claimErr.Error())
 		return "", claimErr
 	}
