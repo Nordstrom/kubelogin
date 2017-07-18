@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,6 +25,7 @@ type authOClient struct {
 	verifier     *oidc.IDTokenVerifier
 	provider     *oidc.Provider
 	client       *http.Client
+	usernameSpec string
 }
 
 const (
@@ -32,7 +34,6 @@ const (
 	stateField    = "state"
 	groupsField   = "groups"
 	usernameField = "username"
-	usernameSpec  = "@nordstrom.com"
 	authCodeField = "code"
 )
 
@@ -64,7 +65,7 @@ func getField(request *http.Request, fieldName string) string {
 /*
    converts the jwt from bytes to a readable string
 */
-func jwtToString(claims json.RawMessage) string {
+func rawMessageToString(claims json.RawMessage) string {
 
 	buff := new(bytes.Buffer)
 	json.Indent(buff, []byte(claims), "", "  ")
@@ -80,7 +81,7 @@ func jwtToString(claims json.RawMessage) string {
 /*
    checks to make sure the jwt contains necessary info to send back to the client
 */
-func verifyJWT(jwt string) bool {
+func verifyJWT(jwt, usernameSpec string) bool {
 
 	groups := strings.Contains(jwt, groupsField)
 	username := strings.Contains(jwt, usernameField)
@@ -99,7 +100,6 @@ func verifyJWT(jwt string) bool {
    we then redirect to the login page with the necessary info.
 */
 func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
-
 	portState := request.FormValue(portField)
 	if portState == "" {
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -119,13 +119,14 @@ func (authClient *authOClient) doAuthDance(requestContext context.Context, authC
 	oidcClientContext := oidc.ClientContext(requestContext, authClient.client)
 	token, err = authClient.getOAuth2Config(nil).Exchange(oidcClientContext, authCode)
 	if err != nil {
+		log.Print("Failed to exchange token")
 		log.Print("Error: " + err.Error() + "\n" + authCode)
 		return nullToken, err
 	}
 
 	rawIDToken, ok := token.Extra(idTokenField).(string)
 	if !ok {
-		log.Print("Failed inside ")
+		log.Print("Failed to get the id_token field")
 		return nullToken, err
 	}
 	return authClient.verifier.Verify(requestContext, rawIDToken)
@@ -139,7 +140,7 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	authCode := getField(request, authCodeField)
 	port := getField(request, stateField)
 	if authCode == "" || port == "" {
-		log.Print("Error! Need authcode and port. Received: ", authCode, port)
+		log.Print("Error! Need authcode and port. Received: " + authCode + " " + port)
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -149,7 +150,8 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 		http.Error(writer, fmt.Sprintf("Failed to verify ID token"), http.StatusInternalServerError)
 		return
 	}
-	sendBackURL, err := generateSendBackURL(idToken, port)
+
+	sendBackURL, err := generateSendBackURL(idToken, port, authClient.usernameSpec)
 	if err != nil {
 		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
 	}
@@ -160,33 +162,32 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 /*
    this will take the jwt and port and generate the url that will be redirected to
 */
-func generateSendBackURL(rawJWT *oidc.IDToken, port string) (string, error) {
+func generateSendBackURL(rawJWT *oidc.IDToken, port string, usernameSpec string) (string, error) {
 	var err error
 	var claims json.RawMessage
 	if claimErr := rawJWT.Claims(&claims); err != nil {
 		log.Print("Error getting claims from idToken: " + claimErr.Error())
 		return "", claimErr
 	}
-
-	jwt := jwtToString(claims)
-	if !verifyJWT(jwt) {
+	jwt := rawMessageToString(claims)
+	if !verifyJWT(jwt, usernameSpec) {
 		log.Print("Error! Failed to verify jwt: " + jwt)
-		return "", err
+		return "", errors.New("JWT failed to verify")
 	}
-
 	sendBackURL := "http://localhost:" + port + "/client?jwt=" + jwt
 	return sendBackURL, nil
 }
 
 //sets up the struct for later use
-func authClientSetup(clientID string, clientSecret string, provider *oidc.Provider) authOClient {
+func newAuthClient(clientID string, clientSecret string, redirectURI string, usernameSpec string, provider *oidc.Provider) authOClient {
 	var authClient authOClient
 	authClient.clientID = clientID
 	authClient.clientSecret = clientSecret
-	authClient.redirectURI = "http://localhost:3000/callback"
+	authClient.redirectURI = redirectURI
 	authClient.client = http.DefaultClient
 	authClient.provider = provider
 	authClient.verifier = provider.Verifier(&oidc.Config{ClientID: authClient.clientID})
+	authClient.usernameSpec = usernameSpec
 	return authClient
 }
 
@@ -204,11 +205,11 @@ func getMux(authClient authOClient) *http.ServeMux {
 */
 func main() {
 	contxt := oidc.ClientContext(context.Background(), http.DefaultClient)
-	provider, err := oidc.NewProvider(contxt, "https://nauth-test.auth0.com/")
+	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
-	if err := http.ListenAndServe(":3000", getMux(authClientSetup(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SEC"), provider))); err != nil {
+	if err := http.ListenAndServe(os.Getenv("LISTEN_PORT"), getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SEC"), os.Getenv("REDIRECT"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
 		log.Fatal(err)
 	}
 }

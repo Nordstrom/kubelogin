@@ -17,7 +17,7 @@ func incorrectURL(w http.ResponseWriter, r *http.Request) {
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 		provider := &oidc.Provider{}
-		authClient := authClientSetup("foo", "bar", provider)
+		authClient := newAuthClient("foo", "bar", "redirect", "userSpec", provider)
 		unitTestServer := httptest.NewServer(getMux(authClient))
 		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
 			response, _ := http.Get(unitTestServer.URL)
@@ -88,12 +88,12 @@ func TestGetField(t *testing.T) {
 func TestVerifyJWT(t *testing.T) {
 	Convey("verifyJwt", t, func() {
 		testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
-		testResult := verifyJWT(testJwt)
+		testResult := verifyJWT(testJwt, "@nordstrom.com")
 		Convey("should return true upon the username, usernameSpec, and groups fields being present", func() {
 			So(testResult, ShouldEqual, true)
 		})
 		Convey("should return false if a field is missing", func() {
-			testResult = verifyJWT("nordy")
+			testResult = verifyJWT("nordy", "usernameSpec")
 			So(testResult, ShouldEqual, false)
 		})
 	})
@@ -103,37 +103,39 @@ func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
 		Convey("should generate a url containing localhost and the port the client sent which contains the jwt as a query parameter", func() {
 			nullToken := &oidc.IDToken{}
-			testSendBackURL, err := generateSendBackURL(nullToken, "3000")
+			testSendBackURL, err := generateSendBackURL(nullToken, "3000", "usernameSpec")
 			log.Print(err)
 			So(testSendBackURL, ShouldEqual, "")
 		})
 	})
 }
 
-func TestJwtToString(t *testing.T) {
-	Convey("jwtToString", t, func() {
+func TestRawMessageToString(t *testing.T) {
+	Convey("rawMessageToString", t, func() {
 
 		Convey("returns a string if a valid byte array is given", func() {
-			testJwt := jwtToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125})
+			testJwt := rawMessageToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125})
 			So(testJwt, ShouldContainSubstring, "alg")
 		})
 		Convey("returns an EOF because there is a missing } as the delimiting byte", func() {
-			failedJwt := jwtToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34})
+			failedJwt := rawMessageToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34})
 			So(failedJwt, ShouldEqual, "EOF")
 		})
 	})
 }
 
-func TestAuthClientSetup(t *testing.T) {
+func TestNewAuthClient(t *testing.T) {
 	Convey("authClientSetup", t, func() {
 		provider := &oidc.Provider{}
 		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
-			testClient := authClientSetup("foo", "bar", provider)
+			testClient := newAuthClient("foo", "bar", "redirect", "usernameSpec", provider)
 			correctID := testClient.clientID == "foo"
 			correctSec := testClient.clientSecret == "bar"
-			correctURI := testClient.redirectURI == "http://localhost:3000/callback"
+			correctURI := testClient.redirectURI == "redirect"
 			correctClient := testClient.client == http.DefaultClient
-			overallCorrect := correctClient && correctID && correctSec && correctURI
+			correctSpec := testClient.usernameSpec == "usernameSpec"
+
+			overallCorrect := correctClient && correctID && correctSec && correctURI && correctSpec
 			So(overallCorrect, ShouldEqual, true)
 		})
 	})
