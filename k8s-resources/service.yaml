@@ -1,16 +1,16 @@
-apiVersion: v1
-kind: Service
+apiVersion:       v1
+kind:             Service
 metadata:
-  name: kubelogin        # Name of the application.
-  namespace: default  # Namespace name.
+  name:           kubelogin        # Name of the application.
+  namespace:      default  # Namespace name.
   labels:
-    app: kubelogin
+    app:          kubelogin
   annotations:
 spec:
   selector:
-    app: kubelogin       # Route service traffic to pods with label keys and values matching this selector.
-  ports:                                          # The list of ports that are exposed by this service
-    - name: http
-      port: 80                                    # The port that will be exposed by this service.
+    app:          kubelogin       # Route service traffic to pods with label keys and values matching this selector.
+  ports:          # The list of ports that are exposed by this service
+    - name:       http
+      port:       80                                    # The port that will be exposed by this service.
       targetPort: 8080                            # Number or name of the port to access on the pods targeted by the service.
-      protocol: TCP
+      protocol:   TCP
