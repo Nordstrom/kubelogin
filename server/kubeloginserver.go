@@ -190,10 +190,15 @@ func newAuthClient(clientID string, clientSecret string, redirectURI string, use
 	return authClient
 }
 
+func healthHandler(writer http.ResponseWriter, request *http.Request) {
+	writer.WriteHeader(http.StatusOK)
+}
+
 func getMux(authClient authOClient) *http.ServeMux {
 	newMux := http.NewServeMux()
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
 	newMux.HandleFunc("/login", authClient.handleCliLogin)
+	newMux.HandleFunc("/health", healthHandler)
 	return newMux
 }
 
@@ -208,7 +213,7 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
-	if err := http.ListenAndServe(os.Getenv("LISTEN_PORT"), getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SEC"), os.Getenv("REDIRECT"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
+	if err := http.ListenAndServe(os.Getenv("LISTEN_PORT"), getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
 		log.Fatal(err)
 	}
 }

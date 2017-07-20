@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: sample-app        # Name of the application.
+  namespace: default      # Namespace name.
+  labels:
+    app: sample-app
+spec:
+  rules:
+    - host: sample-app.default.platform.prod.aws.cloud.nordstrom.net # hostname for your application. Please add namespace to avoid colision.
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: sample-app
+              servicePort: 80
+  # - host: friendly-name.nordstrom.net # If you want to use a friendly name, create a DNS CNAME entry pointing to the above hostname
+  #   http:
+  #     paths:
+  #       - path: /
+  #         backend:
+  #           serviceName: sample-app
+  #           servicePort: 80

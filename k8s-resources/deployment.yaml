@@ -1,0 +1,50 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kl-server                  # Name of the application. You can append environment (dev, default, prod) to the name too.
+  namespace: default                # Namespace name
+  labels:
+    app: kl-server
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  revisionHistoryLimit: 5           # The number of old ReplicaSets to retain to allow rollback.
+  template:
+    metadata:
+      labels:
+        app: kl-server
+    spec:
+      containers:
+        - name: kl-server          # Name of container. Can be same as app-name
+          env:
+              -name: LISTEN_PORT
+               value: ":3000"
+              -name: OIDC_PROVIDER
+               value: "https://nauth-test.auth0.com/" #look into getting this configured with helm
+              -name: REDIRECT
+               value: "http://localhost:3000/callback" #look into getting this configured with helm
+              -name: USERNAME_SPEC
+               value: "@nordstrom.com" #look into getting this configured with helm
+               #-name: CLIENT_SECRET look into getting this from the secret baked into kubernetes
+               #value: fromsecret
+               #-name: CLIENT_ID look into getting this from the secret baked into kubernetes
+               #value: fromsecret
+          image: quay.io/nordstrom/sample-app:1.0 # docker image with version tag
+          imagePullPolicy: Always   # You don't need to specify this field if you version your docker images (recommended). Default to IfNotPresent.
+          ports:                    # List of ports to expose from the container
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          readinessProbe:           # Periodic probe of container service readiness. Container will be removed from service endpoints if the probe fails.
+            httpGet:
+              path: /health
+              port: 3000
+              scheme: HTTP
+            failureThreshold: 3
+            successThreshold: 1
+            initialDelaySeconds: 15
+            timeoutSeconds: 2
