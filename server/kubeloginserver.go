@@ -210,11 +210,11 @@ func getMux(authClient authOClient) *http.ServeMux {
 */
 func main() {
 	contxt := oidc.ClientContext(context.Background(), http.DefaultClient)
-	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER"))
+	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
-	if err := http.ListenAndServe(os.Getenv("LISTEN_PORT"), getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
+	if err := http.ListenAndServe(os.Getenv("LISTEN_PORT"), getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
 		log.Fatal(err)
 	}
 }
