@@ -154,6 +154,7 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	sendBackURL, err := generateSendBackURL(idToken, port, authClient.usernameSpec)
 	if err != nil {
 		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
+		return
 	}
 	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
 	return
