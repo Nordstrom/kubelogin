@@ -214,7 +214,8 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
-	if err := http.ListenAndServe(os.Getenv("LISTEN_PORT"), getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
+	listenPort := ":" + os.Getenv("LISTEN_PORT")
+	if err := http.ListenAndServe(listenPort, getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
 		log.Fatal(err)
 	}
 }
