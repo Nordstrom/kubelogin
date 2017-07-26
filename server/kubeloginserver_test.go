@@ -140,3 +140,16 @@ func TestNewAuthClient(t *testing.T) {
 		})
 	})
 }
+
+func TestHealthHandler(t *testing.T) {
+	Convey("healthHandler", t, func() {
+		provider := &oidc.Provider{}
+		authClient := newAuthClient("foo", "bar", "redirect", "userSpec", provider)
+		unitTestServer := httptest.NewServer(getMux(authClient))
+		Convey("Should write back to the response writer a statusOK", func() {
+			resp, _ := http.Get(unitTestServer.URL + "/health")
+			So(resp.StatusCode, ShouldEqual, 200)
+
+		})
+	})
+}

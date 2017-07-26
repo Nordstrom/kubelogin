@@ -154,6 +154,7 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	sendBackURL, err := generateSendBackURL(idToken, port, authClient.usernameSpec)
 	if err != nil {
 		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
+		return
 	}
 	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
 	return
@@ -190,10 +191,15 @@ func newAuthClient(clientID string, clientSecret string, redirectURI string, use
 	return authClient
 }
 
+func healthHandler(writer http.ResponseWriter, request *http.Request) {
+	writer.WriteHeader(http.StatusOK)
+}
+
 func getMux(authClient authOClient) *http.ServeMux {
 	newMux := http.NewServeMux()
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
 	newMux.HandleFunc("/login", authClient.handleCliLogin)
+	newMux.HandleFunc("/health", healthHandler)
 	return newMux
 }
 
@@ -204,11 +210,12 @@ func getMux(authClient authOClient) *http.ServeMux {
 */
 func main() {
 	contxt := oidc.ClientContext(context.Background(), http.DefaultClient)
-	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER"))
+	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
-	if err := http.ListenAndServe(os.Getenv("LISTEN_PORT"), getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SEC"), os.Getenv("REDIRECT"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
+	listenPort := ":" + os.Getenv("LISTEN_PORT")
+	if err := http.ListenAndServe(listenPort, getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
 		log.Fatal(err)
 	}
 }
