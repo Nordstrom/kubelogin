@@ -8,16 +8,16 @@ build:
 build/kubelogin : server/*.go | build
 	# Build your golang app for the target OS
 	# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
-	docker run -it -v $(PWD):/go/src/github.com/nordstorm/kubelogin/ -w /go/src/github.com/nordstorm/kubelogin/server/ golang:1.7.4 go build -v -o kubelogin -ldflags "-X main.Version=$(image_tag)"
+	docker run -it -v $(PWD):/go/src/github.com/nordstorm/kubelogin/ -w /go/src/github.com/nordstorm/kubelogin/server/ golang:1.7.4 go build -v -o kubelogin
 	mv server/kubelogin build
 
 kubelogin: server/*.go | build
 	# Build golang app for local OS
-	go build -o kubelogin -ldflags "-X main.Version=$(image_tag)"
+	go build -o kubelogin 
 
 .PHONY: test_app
 test_app:
-	go test
+	go test ./...
 
 build/Dockerfile: Dockerfile
 	cp Dockerfile build/Dockerfile
@@ -29,8 +29,3 @@ build_image: build/kubelogin build/Dockerfile | build
 push_image: build_image
 	docker push $(image_name):$(image_tag)
 
-deploy:
-	kubectl apply --record -f k8s-resources
-
-teardown:
-	kubectl delete -f k8s-resources

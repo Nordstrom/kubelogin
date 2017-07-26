@@ -1,7 +1,3 @@
-FROM golang
-ENV GOPATH=/go
-COPY  ./ /go/src/github.com/nordstrom/kubelogin/
-WORKDIR /go/src/github.com/nordstrom/kubelogin/
-RUN env
-RUN go env
-RUN go test -v ./...
+FROM quay.io/nordstrom/baseimage-ubuntu:16.04
+COPY  kubelogin /kubelogin
+ENTRYPOINT /kubelogin 
