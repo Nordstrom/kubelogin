@@ -5,12 +5,10 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
-	//"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
@@ -82,21 +80,6 @@ func rawMessageToString(claims json.RawMessage) string {
 	}
 	log.Print(jwt)
 	return jwt
-}
-
-/*
-   checks to make sure the jwt contains necessary info to send back to the client
-*/
-func verifyJWT(jwt, usernameSpec string) bool {
-
-	groups := strings.Contains(jwt, groupsField)
-	username := strings.Contains(jwt, usernameField)
-	validUsername := strings.Contains(jwt, usernameSpec)
-	log.Print(groups, validUsername, username)
-	if groups && username && validUsername {
-		return true
-	}
-	return false
 }
 
 /*
@@ -182,12 +165,6 @@ func exchangeHandler(w http.ResponseWriter, r *http.Request) {
    this will take the jwt and port and generate the url that will be redirected to
 */
 func generateSendBackURL(jwt string, port string, usernameSpec string) (string, error) {
-
-	// if !verifyJWT(jwt, usernameSpec) {
-	// 	log.Print("Error! Failed to verify jwt: " + jwt)
-	// 	return "", errors.New("JWT failed to verify")
-	// }
-
 	// Generate sha sum for jwt
 	hash := sha1.New()
 	hash.Write([]byte(jwt))

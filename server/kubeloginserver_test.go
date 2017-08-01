@@ -85,27 +85,12 @@ func TestGetField(t *testing.T) {
 	})
 }
 
-func TestVerifyJWT(t *testing.T) {
-	Convey("verifyJwt", t, func() {
-		testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
-		testResult := verifyJWT(testJwt, "@nordstrom.com")
-		Convey("should return true upon the username, usernameSpec, and groups fields being present", func() {
-			So(testResult, ShouldEqual, true)
-		})
-		Convey("should return false if a field is missing", func() {
-			testResult = verifyJWT("nordy", "usernameSpec")
-			So(testResult, ShouldEqual, false)
-		})
-	})
-}
-
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
 		Convey("should generate an error due to the token not containing a claims field", func() {
-			nullToken := &oidc.IDToken{}
-			testSendBackURL, err := generateSendBackURL(nullToken, "3000", "usernameSpec")
+			testSendBackURL, err := generateSendBackURL("asdasdadsad", "3000", "usernameSpec")
 			log.Print(err)
-			So(testSendBackURL, ShouldEqual, "")
+			So(testSendBackURL, ShouldPanic)
 		})
 	})
 }
