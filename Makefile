@@ -1,5 +1,5 @@
 build := build
-image_tag := 1.0
+image_tag := 1.0-g
 image_name := quay.io/nordstrom/kubelogin
 
 build:

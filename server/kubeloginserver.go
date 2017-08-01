@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"encoding/json"
-	"errors"
+	//"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -35,6 +36,11 @@ const (
 	groupsField   = "groups"
 	usernameField = "username"
 	authCodeField = "code"
+	tokenField    = "token"
+)
+
+var (
+	database map[string]string
 )
 
 /*
@@ -56,7 +62,7 @@ func (authClient *authOClient) getOAuth2Config(scopes []string) *oauth2.Config {
 func getField(request *http.Request, fieldName string) string {
 
 	if request.FormValue(fieldName) != "" {
-		log.Print("fieldname: [" + request.FormValue(fieldName) + "]")
+		log.Printf("%s: [%s]", fieldName, request.FormValue(fieldName))
 		return request.FormValue(fieldName)
 	}
 	return ""
@@ -110,26 +116,27 @@ func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, reques
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
-func (authClient *authOClient) doAuthDance(requestContext context.Context, authCode string) (*oidc.IDToken, error) {
+func (authClient *authOClient) doAuthDance(requestContext context.Context, authCode string) (string, error) {
 	var (
 		err   error
 		token *oauth2.Token
 	)
-	nullToken := &oidc.IDToken{}
 	oidcClientContext := oidc.ClientContext(requestContext, authClient.client)
 	token, err = authClient.getOAuth2Config(nil).Exchange(oidcClientContext, authCode)
 	if err != nil {
 		log.Print("Failed to exchange token")
 		log.Print("Error: " + err.Error() + "\n" + authCode)
-		return nullToken, err
+		return "", err
 	}
 
 	rawIDToken, ok := token.Extra(idTokenField).(string)
 	if !ok {
 		log.Print("Failed to get the id_token field")
-		return nullToken, err
+		return "", err
 	}
-	return authClient.verifier.Verify(requestContext, rawIDToken)
+
+	return rawIDToken, nil
+	//return authClient.verifier.Verify(requestContext, rawIDToken)
 }
 
 /*
@@ -144,14 +151,14 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	idToken, err := authClient.doAuthDance(request.Context(), authCode)
+	jwt, err := authClient.doAuthDance(request.Context(), authCode)
 	if err != nil {
-		log.Print("Error verifying idToken: " + err.Error())
-		http.Error(writer, fmt.Sprintf("Failed to verify ID token"), http.StatusInternalServerError)
+		log.Print("Error in auth: " + err.Error())
+		http.Error(writer, fmt.Sprintf("Error in auth"), http.StatusInternalServerError)
 		return
 	}
 
-	sendBackURL, err := generateSendBackURL(idToken, port, authClient.usernameSpec)
+	sendBackURL, err := generateSendBackURL(jwt, port, authClient.usernameSpec)
 	if err != nil {
 		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
 		return
@@ -160,21 +167,39 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	return
 }
 
+func exchangeHandler(w http.ResponseWriter, r *http.Request) {
+	token := getField(r, tokenField)
+	jwt := database[token]
+	if jwt == "" {
+		log.Println("map:", database)
+		http.Error(w, "Failed to find jwt for token "+token, http.StatusUnauthorized)
+	}
+
+	w.Write([]byte(jwt))
+}
+
 /*
    this will take the jwt and port and generate the url that will be redirected to
 */
-func generateSendBackURL(rawJWT *oidc.IDToken, port string, usernameSpec string) (string, error) {
-	var claims json.RawMessage
-	if claimErr := rawJWT.Claims(&claims); claimErr != nil {
-		log.Print("Error getting claims from idToken: " + claimErr.Error())
-		return "", claimErr
-	}
-	jwt := rawMessageToString(claims)
-	if !verifyJWT(jwt, usernameSpec) {
-		log.Print("Error! Failed to verify jwt: " + jwt)
-		return "", errors.New("JWT failed to verify")
-	}
-	sendBackURL := "http://localhost:" + port + "/client?jwt=" + jwt
+func generateSendBackURL(jwt string, port string, usernameSpec string) (string, error) {
+
+	// if !verifyJWT(jwt, usernameSpec) {
+	// 	log.Print("Error! Failed to verify jwt: " + jwt)
+	// 	return "", errors.New("JWT failed to verify")
+	// }
+
+	// Generate sha sum for jwt
+	hash := sha1.New()
+	hash.Write([]byte(jwt))
+	token := hash.Sum(nil)
+	stringToken := fmt.Sprintf("%x", token)
+
+	log.Printf("storing %5s for token %5s", jwt, stringToken)
+
+	//store jwt in "database" by shasum
+	database[stringToken] = jwt
+
+	sendBackURL := "http://localhost:" + port + "/client?token=" + stringToken
 	return sendBackURL, nil
 }
 
@@ -200,6 +225,7 @@ func getMux(authClient authOClient) *http.ServeMux {
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
 	newMux.HandleFunc("/login", authClient.handleCliLogin)
 	newMux.HandleFunc("/health", healthHandler)
+	newMux.HandleFunc("/exchange", exchangeHandler)
 	return newMux
 }
 
@@ -209,6 +235,7 @@ func getMux(authClient authOClient) *http.ServeMux {
    the struct to contain necessary information
 */
 func main() {
+	database = make(map[string]string)
 	contxt := oidc.ClientContext(context.Background(), http.DefaultClient)
 	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
