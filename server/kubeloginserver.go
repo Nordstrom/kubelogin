@@ -93,7 +93,7 @@ func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, reques
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	var scopes = []string{"openid", " https://claims.nordstrom.com/nauth/username ", " https://claims.nordstrom.com/nauth/groups "}
+	var scopes = []string{"openid", os.Getenv("GROUPS_CLAIM"), os.Getenv("USER_CLAIM")}
 	authCodeURL := authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
