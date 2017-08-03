@@ -24,7 +24,6 @@ type authOClient struct {
 	verifier     *oidc.IDTokenVerifier
 	provider     *oidc.Provider
 	client       *http.Client
-	usernameSpec string
 }
 
 const (
@@ -141,7 +140,7 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 		return
 	}
 
-	sendBackURL, err := generateSendBackURL(jwt, port, authClient.usernameSpec)
+	sendBackURL, err := generateSendBackURL(jwt, port)
 	if err != nil {
 		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
 		return
@@ -164,7 +163,7 @@ func exchangeHandler(w http.ResponseWriter, r *http.Request) {
 /*
    this will take the jwt and port and generate the url that will be redirected to
 */
-func generateSendBackURL(jwt string, port string, usernameSpec string) (string, error) {
+func generateSendBackURL(jwt string, port string) (string, error) {
 	// Generate sha sum for jwt
 	hash := sha1.New()
 	hash.Write([]byte(jwt))
@@ -181,7 +180,7 @@ func generateSendBackURL(jwt string, port string, usernameSpec string) (string, 
 }
 
 //sets up the struct for later use
-func newAuthClient(clientID string, clientSecret string, redirectURI string, usernameSpec string, provider *oidc.Provider) authOClient {
+func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider) authOClient {
 	var authClient authOClient
 	authClient.clientID = clientID
 	authClient.clientSecret = clientSecret
@@ -189,7 +188,6 @@ func newAuthClient(clientID string, clientSecret string, redirectURI string, use
 	authClient.client = http.DefaultClient
 	authClient.provider = provider
 	authClient.verifier = provider.Verifier(&oidc.Config{ClientID: authClient.clientID})
-	authClient.usernameSpec = usernameSpec
 	return authClient
 }
 
@@ -219,7 +217,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
 	listenPort := ":" + os.Getenv("LISTEN_PORT")
-	if err := http.ListenAndServe(listenPort, getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), os.Getenv("USERNAME_SPEC"), provider))); err != nil {
+	if err := http.ListenAndServe(listenPort, getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider))); err != nil {
 		log.Fatal(err)
 	}
 }

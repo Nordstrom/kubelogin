@@ -17,7 +17,7 @@ func incorrectURL(w http.ResponseWriter, r *http.Request) {
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 		provider := &oidc.Provider{}
-		authClient := newAuthClient("foo", "bar", "redirect", "userSpec", provider)
+		authClient := newAuthClient("foo", "bar", "redirect", provider)
 		unitTestServer := httptest.NewServer(getMux(authClient))
 		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
 			response, _ := http.Get(unitTestServer.URL)
@@ -88,7 +88,7 @@ func TestGetField(t *testing.T) {
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
 		Convey("should generate an error due to the token not containing a claims field", func() {
-			testSendBackURL, err := generateSendBackURL("asdasdadsad", "3000", "usernameSpec")
+			testSendBackURL, err := generateSendBackURL("asdasdadsad", "3000")
 			log.Print(err)
 			So(testSendBackURL, ShouldPanic)
 		})
@@ -113,14 +113,13 @@ func TestNewAuthClient(t *testing.T) {
 	Convey("authClientSetup", t, func() {
 		provider := &oidc.Provider{}
 		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
-			testClient := newAuthClient("foo", "bar", "redirect", "usernameSpec", provider)
+			testClient := newAuthClient("foo", "bar", "redirect", provider)
 			correctID := testClient.clientID == "foo"
 			correctSec := testClient.clientSecret == "bar"
 			correctURI := testClient.redirectURI == "redirect"
 			correctClient := testClient.client == http.DefaultClient
-			correctSpec := testClient.usernameSpec == "usernameSpec"
 
-			overallCorrect := correctClient && correctID && correctSec && correctURI && correctSpec
+			overallCorrect := correctClient && correctID && correctSec && correctURI
 			So(overallCorrect, ShouldEqual, true)
 		})
 	})
@@ -129,7 +128,7 @@ func TestNewAuthClient(t *testing.T) {
 func TestHealthHandler(t *testing.T) {
 	Convey("healthHandler", t, func() {
 		provider := &oidc.Provider{}
-		authClient := newAuthClient("foo", "bar", "redirect", "userSpec", provider)
+		authClient := newAuthClient("foo", "bar", "redirect", provider)
 		unitTestServer := httptest.NewServer(getMux(authClient))
 		Convey("Should write back to the response writer a statusOK", func() {
 			resp, _ := http.Get(unitTestServer.URL + "/health")
