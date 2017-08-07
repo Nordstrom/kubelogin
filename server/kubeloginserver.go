@@ -9,8 +9,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/coreos/go-oidc"
+	"github.com/go-redis/redis"
 	"golang.org/x/oauth2"
 )
 
@@ -37,7 +39,7 @@ const (
 )
 
 var (
-	database map[string]string
+	redisClient *redis.Client
 )
 
 /*
@@ -151,9 +153,9 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 
 func exchangeHandler(w http.ResponseWriter, r *http.Request) {
 	token := getField(r, tokenField)
-	jwt := database[token]
-	if jwt == "" {
-		log.Println("map:", database)
+	jwt, err := redisClient.Get(token).Result()
+	if err != nil {
+		log.Printf("Error exchanging token for jwt: %v", err)
 		http.Error(w, "Failed to find jwt for token "+token, http.StatusUnauthorized)
 	}
 
@@ -171,9 +173,11 @@ func generateSendBackURL(jwt string, port string) (string, error) {
 	stringToken := fmt.Sprintf("%x", token)
 
 	log.Printf("storing %5s for token %5s", jwt, stringToken)
-
 	//store jwt in "database" by shasum
-	database[stringToken] = jwt
+	err := redisClient.Set(stringToken, jwt, 10*time.Second)
+	if err != nil {
+		log.Printf("Error storing token in database: %v", err)
+	}
 
 	sendBackURL := "http://localhost:" + port + "/client?token=" + stringToken
 	return sendBackURL, nil
@@ -204,13 +208,26 @@ func getMux(authClient authOClient) *http.ServeMux {
 	return newMux
 }
 
+func makeRedisClient() {
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     "",
+		Password: "",
+		DB:       0,
+	})
+	ping, err := redisClient.Ping().Result()
+	if err != nil {
+		log.Printf("Error pinging Redis database: %v", err)
+	}
+	log.Printf("The result from pinging the database is %s", ping)
+}
+
 /*
    sets up a new mux. upon a user clicking the link to our server, it will be handled by the handleLogin function.
    When the auth server posts to our server it will be controlled by the callbackHandler. This is also initial setup for
    the struct to contain necessary information
 */
 func main() {
-	database = make(map[string]string)
+	makeRedisClient()
 	contxt := oidc.ClientContext(context.Background(), http.DefaultClient)
 	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
