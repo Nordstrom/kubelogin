@@ -95,20 +95,6 @@ func TestGenerateSendBackURL(t *testing.T) {
 	})
 }
 
-func TestRawMessageToString(t *testing.T) {
-	Convey("rawMessageToString", t, func() {
-
-		Convey("returns a string if a valid byte array is given", func() {
-			testJwt := rawMessageToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125})
-			So(testJwt, ShouldContainSubstring, "alg")
-		})
-		Convey("returns an EOF because there is a missing } as the delimiting byte", func() {
-			failedJwt := rawMessageToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34})
-			So(failedJwt, ShouldEqual, "EOF")
-		})
-	})
-}
-
 func TestNewAuthClient(t *testing.T) {
 	Convey("authClientSetup", t, func() {
 		provider := &oidc.Provider{}

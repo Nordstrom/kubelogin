@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -65,22 +63,6 @@ func getField(request *http.Request, fieldName string) string {
 		return request.FormValue(fieldName)
 	}
 	return ""
-}
-
-/*
-   converts the jwt from bytes to a readable string
-*/
-func rawMessageToString(claims json.RawMessage) string {
-
-	buff := new(bytes.Buffer)
-	json.Indent(buff, []byte(claims), "", "  ")
-	jwt, err := buff.ReadString('}')
-	if err != nil {
-		log.Print(err)
-		return err.Error()
-	}
-	log.Print(jwt)
-	return jwt
 }
 
 /*
@@ -172,7 +154,6 @@ func generateSendBackURL(jwt string, port string) (string, error) {
 	token := hash.Sum(nil)
 	stringToken := fmt.Sprintf("%x", token)
 
-	log.Printf("storing %5s for token %5s", jwt, stringToken)
 	//store jwt in "database" by shasum
 	err := redisClient.Set(stringToken, jwt, 10*time.Second).Err()
 	if err != nil {
