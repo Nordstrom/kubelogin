@@ -208,9 +208,7 @@ func getMux(authClient authOClient) *http.ServeMux {
 	return newMux
 }
 
-func makeRedisClient() {
-	log.Printf("the redis url is: %v", os.Getenv("REDIS_URL"))
-	log.Printf("the redis password is: %v", os.Getenv("REDIS_PASSWORD"))
+func makeRedisClient() error {
 	redisClient = redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_URL"),
 		Password: os.Getenv("REDIS_PASSWORD"),
@@ -219,8 +217,10 @@ func makeRedisClient() {
 	ping, err := redisClient.Ping().Result()
 	if err != nil {
 		log.Printf("Error pinging Redis database: %v", err)
+		return err
 	}
 	log.Printf("The result from pinging the database is %s", ping)
+	return nil
 }
 
 /*
@@ -229,7 +229,9 @@ func makeRedisClient() {
    the struct to contain necessary information
 */
 func main() {
-	makeRedisClient()
+	if err := makeRedisClient(); err != nil {
+		log.Fatalf("Error communicating with redis: %v", err)
+	}
 	contxt := oidc.ClientContext(context.Background(), http.DefaultClient)
 	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
