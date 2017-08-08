@@ -51,6 +51,11 @@ var (
 		Name: "kubelogin_tokenCounter",
 		Help: "number of times the server generates a token to go into redis",
 	})
+	serverResponseLatencies = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "kubelogin_serverResponseLatencies",
+		Help: "the latency of the server functions. classified by the request method",
+	},
+		[]string{"method"})
 )
 
 /*
@@ -85,6 +90,8 @@ func getField(request *http.Request, fieldName string) string {
    we then redirect to the login page with the necessary info.
 */
 func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
+	startTime := time.Now()
+
 	portState := request.FormValue(portField)
 	if portState == "" {
 		log.Print("missing port in request from client")
@@ -95,6 +102,11 @@ func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, reques
 	}
 	var scopes = []string{"openid", os.Getenv("GROUPS_CLAIM"), os.Getenv("USER_CLAIM")}
 	authCodeURL := authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
+
+	elapsedTime := time.Since(startTime)
+	elapsedMs := elapsedTime / time.Millisecond
+	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedMs))
+
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
@@ -103,6 +115,7 @@ func (authClient *authOClient) doAuthDance(requestContext context.Context, authC
 		err   error
 		token *oauth2.Token
 	)
+
 	oidcClientContext := oidc.ClientContext(requestContext, authClient.client)
 	token, err = authClient.getOAuth2Config(nil).Exchange(oidcClientContext, authCode)
 	if err != nil {
@@ -128,6 +141,8 @@ func (authClient *authOClient) doAuthDance(requestContext context.Context, authC
    field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
 */
 func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, request *http.Request) {
+	startTime := time.Now()
+
 	authCode := getField(request, authCodeField)
 	port := getField(request, stateField)
 	if authCode == "" || port == "" {
@@ -153,22 +168,33 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
 		return
 	}
+
+	elapsedTime := time.Since(startTime)
+	elapsedMs := elapsedTime / time.Millisecond
+	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedMs))
+
 	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
-	return
+
 }
 
-func exchangeHandler(w http.ResponseWriter, r *http.Request) {
-	token := getField(r, tokenField)
+func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
+	startTime := time.Now()
+	token := getField(request, tokenField)
 	jwt, err := redisClient.Get(token).Result()
 	if err != nil {
 		errorCounter.Inc()
 		log.Print("error counter incremented")
 		log.Printf("Error exchanging token for jwt: %v", err)
-		http.Error(w, "Failed to find jwt for token "+token, http.StatusUnauthorized)
+		http.Error(writer, "Failed to find jwt for token "+token, http.StatusUnauthorized)
 	}
 	successCounter.Inc()
 	log.Print("success counter incremented")
-	w.Write([]byte(jwt))
+
+	elapsedTime := time.Since(startTime)
+	elapsedMs := elapsedTime / time.Millisecond
+	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedMs))
+
+	writer.Write([]byte(jwt))
 }
 
 /*
@@ -242,6 +268,7 @@ func init() {
 	prometheus.MustRegister(errorCounter)
 	prometheus.MustRegister(successCounter)
 	prometheus.MustRegister(tokenCounter)
+	prometheus.MustRegister(serverResponseLatencies)
 }
 
 /*
