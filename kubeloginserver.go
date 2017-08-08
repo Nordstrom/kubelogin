@@ -11,6 +11,7 @@ import (
 
 	"github.com/coreos/go-oidc"
 	"github.com/go-redis/redis"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/oauth2"
 )
 
@@ -37,7 +38,19 @@ const (
 )
 
 var (
-	redisClient *redis.Client
+	redisClient  *redis.Client
+	errorCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "kubelogin_errorCounter",
+		Help: "number of times an error occurs",
+	})
+	successCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "kubelogin_successCounter",
+		Help: "number of times the server returns a full jwt successfully",
+	})
+	tokenCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "kubelogin_tokenCounter",
+		Help: "number of times the server generates a token to go into redis",
+	})
 )
 
 /*
@@ -74,6 +87,9 @@ func getField(request *http.Request, fieldName string) string {
 func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
 	portState := request.FormValue(portField)
 	if portState == "" {
+		log.Print("missing port in request from client")
+		errorCounter.Inc()
+		log.Print("error count incremented")
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -90,19 +106,21 @@ func (authClient *authOClient) doAuthDance(requestContext context.Context, authC
 	oidcClientContext := oidc.ClientContext(requestContext, authClient.client)
 	token, err = authClient.getOAuth2Config(nil).Exchange(oidcClientContext, authCode)
 	if err != nil {
-		log.Print("Failed to exchange token")
-		log.Print("Error: " + err.Error() + "\n" + authCode)
+		errorCounter.Inc()
+		log.Print("error count incremented")
+		log.Printf("Failed to exchange token. Error: %v", err)
 		return "", err
 	}
 
 	rawIDToken, ok := token.Extra(idTokenField).(string)
 	if !ok {
+		errorCounter.Inc()
+		log.Print("error counter incremented")
 		log.Print("Failed to get the id_token field")
 		return "", err
 	}
 
 	return rawIDToken, nil
-	//return authClient.verifier.Verify(requestContext, rawIDToken)
 }
 
 /*
@@ -113,12 +131,16 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	authCode := getField(request, authCodeField)
 	port := getField(request, stateField)
 	if authCode == "" || port == "" {
-		log.Print("Error! Need authcode and port. Received: " + authCode + " " + port)
+		errorCounter.Inc()
+		log.Print("error counter incremented")
+		log.Printf("Error! Need authcode and port. Received this authcode: [%s] | Received this port: [%s]", authCode, port)
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	jwt, err := authClient.doAuthDance(request.Context(), authCode)
 	if err != nil {
+		errorCounter.Inc()
+		log.Print("error counter incremented")
 		log.Print("Error in auth: " + err.Error())
 		http.Error(writer, fmt.Sprintf("Error in auth"), http.StatusInternalServerError)
 		return
@@ -126,6 +148,8 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 
 	sendBackURL, err := generateSendBackURL(jwt, port)
 	if err != nil {
+		errorCounter.Inc()
+		log.Print("error counter incremented ")
 		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
 		return
 	}
@@ -137,10 +161,13 @@ func exchangeHandler(w http.ResponseWriter, r *http.Request) {
 	token := getField(r, tokenField)
 	jwt, err := redisClient.Get(token).Result()
 	if err != nil {
+		errorCounter.Inc()
+		log.Print("error counter incremented")
 		log.Printf("Error exchanging token for jwt: %v", err)
 		http.Error(w, "Failed to find jwt for token "+token, http.StatusUnauthorized)
 	}
-
+	successCounter.Inc()
+	log.Print("success counter incremented")
 	w.Write([]byte(jwt))
 }
 
@@ -152,12 +179,17 @@ func generateSendBackURL(jwt string, port string) (string, error) {
 	hash := sha1.New()
 	hash.Write([]byte(jwt))
 	token := hash.Sum(nil)
+	tokenCounter.Inc()
+	log.Print("token counter incremented")
 	stringToken := fmt.Sprintf("%x", token)
 
 	//store jwt in "database" by shasum
 	err := redisClient.Set(stringToken, jwt, 10*time.Second).Err()
 	if err != nil {
+		errorCounter.Inc()
+		log.Print(("error counter incremented"))
 		log.Printf("Error storing token in database: %v", err)
+		return "", err
 	}
 
 	sendBackURL := "http://localhost:" + port + "/client?token=" + stringToken
@@ -202,6 +234,13 @@ func makeRedisClient() error {
 	}
 	log.Printf("The result from pinging the database is %s", ping)
 	return nil
+}
+
+//registers the error and success counters with prometheus
+func init() {
+	prometheus.MustRegister(errorCounter)
+	prometheus.MustRegister(successCounter)
+	prometheus.MustRegister(tokenCounter)
 }
 
 /*
