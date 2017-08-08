@@ -1,11 +1,42 @@
 {
-	"ImportPath": "github.com/nordstrom/kubelogin",
+	"ImportPath": "github.com/nordstrom/kubelogin/server",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
-	"Packages": [
-		"./..."
-	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/coreos/go-oidc",
+			"Rev": "d68c0e2fef598f5bbf15edd34905f4bf551a54ec"
+		},
+		{
+			"ImportPath": "github.com/go-redis/redis",
+			"Comment": "v6.5.6-2-g7a034e1",
+			"Rev": "7a034e1609674d5eb847c3885e5058c54e79a1df"
+		},
+		{
+			"ImportPath": "github.com/go-redis/redis/internal",
+			"Comment": "v6.5.6-2-g7a034e1",
+			"Rev": "7a034e1609674d5eb847c3885e5058c54e79a1df"
+		},
+		{
+			"ImportPath": "github.com/go-redis/redis/internal/consistenthash",
+			"Comment": "v6.5.6-2-g7a034e1",
+			"Rev": "7a034e1609674d5eb847c3885e5058c54e79a1df"
+		},
+		{
+			"ImportPath": "github.com/go-redis/redis/internal/hashtag",
+			"Comment": "v6.5.6-2-g7a034e1",
+			"Rev": "7a034e1609674d5eb847c3885e5058c54e79a1df"
+		},
+		{
+			"ImportPath": "github.com/go-redis/redis/internal/pool",
+			"Comment": "v6.5.6-2-g7a034e1",
+			"Rev": "7a034e1609674d5eb847c3885e5058c54e79a1df"
+		},
+		{
+			"ImportPath": "github.com/go-redis/redis/internal/proto",
+			"Comment": "v6.5.6-2-g7a034e1",
+			"Rev": "7a034e1609674d5eb847c3885e5058c54e79a1df"
+		},
 		{
 			"ImportPath": "github.com/gopherjs/gopherjs/js",
 			"Rev": "dc374d32704510cb387457180ca9d5193978b555"
@@ -14,6 +45,14 @@
 			"ImportPath": "github.com/jtolds/gls",
 			"Comment": "v4.2.1",
 			"Rev": "77f18212c9c7edc9bd6a33d383a7b545ce62f064"
+		},
+		{
+			"ImportPath": "github.com/pquerna/cachecontrol",
+			"Rev": "5475d973ea70916980bee28c2b674f3dc3eaed0a"
+		},
+		{
+			"ImportPath": "github.com/pquerna/cachecontrol/cacheobject",
+			"Rev": "5475d973ea70916980bee28c2b674f3dc3eaed0a"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions",
@@ -44,6 +83,37 @@
 			"ImportPath": "github.com/smartystreets/goconvey/convey/reporting",
 			"Comment": "1.6.2-21-g9e8dc3f",
 			"Rev": "9e8dc3f972df6c8fcc0375ef492c24d0bb204857"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "5f8847ae0d0e90b6a9dc8148e7ad616874625171"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context/ctxhttp",
+			"Rev": "5f8847ae0d0e90b6a9dc8148e7ad616874625171"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "cce311a261e6fcf29de72ca96827bdb0b7d9c9e6"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2/internal",
+			"Rev": "cce311a261e6fcf29de72ca96827bdb0b7d9c9e6"
+		},
+		{
+			"ImportPath": "gopkg.in/square/go-jose.v2",
+			"Comment": "v2.1.2",
+			"Rev": "b25e6cab129e4a54675b42ea49d38e9c33ade9e6"
+		},
+		{
+			"ImportPath": "gopkg.in/square/go-jose.v2/cipher",
+			"Comment": "v2.1.2",
+			"Rev": "b25e6cab129e4a54675b42ea49d38e9c33ade9e6"
+		},
+		{
+			"ImportPath": "gopkg.in/square/go-jose.v2/json",
+			"Comment": "v2.1.2",
+			"Rev": "b25e6cab129e4a54675b42ea49d38e9c33ade9e6"
 		}
 	]
 }

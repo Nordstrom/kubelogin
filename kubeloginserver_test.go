@@ -17,7 +17,7 @@ func incorrectURL(w http.ResponseWriter, r *http.Request) {
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 		provider := &oidc.Provider{}
-		authClient := newAuthClient("foo", "bar", "redirect", "userSpec", provider)
+		authClient := newAuthClient("foo", "bar", "redirect", provider)
 		unitTestServer := httptest.NewServer(getMux(authClient))
 		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
 			response, _ := http.Get(unitTestServer.URL)
@@ -85,41 +85,12 @@ func TestGetField(t *testing.T) {
 	})
 }
 
-func TestVerifyJWT(t *testing.T) {
-	Convey("verifyJwt", t, func() {
-		testJwt := "https://claims.nordstrom.com/nauth/groups, https://claims.nordstrom.com/nauth/username, @nordstrom.com"
-		testResult := verifyJWT(testJwt, "@nordstrom.com")
-		Convey("should return true upon the username, usernameSpec, and groups fields being present", func() {
-			So(testResult, ShouldEqual, true)
-		})
-		Convey("should return false if a field is missing", func() {
-			testResult = verifyJWT("nordy", "usernameSpec")
-			So(testResult, ShouldEqual, false)
-		})
-	})
-}
-
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
 		Convey("should generate an error due to the token not containing a claims field", func() {
-			nullToken := &oidc.IDToken{}
-			testSendBackURL, err := generateSendBackURL(nullToken, "3000", "usernameSpec")
+			testSendBackURL, err := generateSendBackURL("asdasdadsad", "3000")
 			log.Print(err)
-			So(testSendBackURL, ShouldEqual, "")
-		})
-	})
-}
-
-func TestRawMessageToString(t *testing.T) {
-	Convey("rawMessageToString", t, func() {
-
-		Convey("returns a string if a valid byte array is given", func() {
-			testJwt := rawMessageToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34, 125})
-			So(testJwt, ShouldContainSubstring, "alg")
-		})
-		Convey("returns an EOF because there is a missing } as the delimiting byte", func() {
-			failedJwt := rawMessageToString([]byte{123, 34, 97, 108, 103, 34, 58, 34, 82, 83, 50, 53, 54, 34})
-			So(failedJwt, ShouldEqual, "EOF")
+			So(testSendBackURL, ShouldPanic)
 		})
 	})
 }
@@ -128,15 +99,27 @@ func TestNewAuthClient(t *testing.T) {
 	Convey("authClientSetup", t, func() {
 		provider := &oidc.Provider{}
 		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
-			testClient := newAuthClient("foo", "bar", "redirect", "usernameSpec", provider)
+			testClient := newAuthClient("foo", "bar", "redirect", provider)
 			correctID := testClient.clientID == "foo"
 			correctSec := testClient.clientSecret == "bar"
 			correctURI := testClient.redirectURI == "redirect"
 			correctClient := testClient.client == http.DefaultClient
-			correctSpec := testClient.usernameSpec == "usernameSpec"
 
-			overallCorrect := correctClient && correctID && correctSec && correctURI && correctSpec
+			overallCorrect := correctClient && correctID && correctSec && correctURI
 			So(overallCorrect, ShouldEqual, true)
+		})
+	})
+}
+
+func TestHealthHandler(t *testing.T) {
+	Convey("healthHandler", t, func() {
+		provider := &oidc.Provider{}
+		authClient := newAuthClient("foo", "bar", "redirect", provider)
+		unitTestServer := httptest.NewServer(getMux(authClient))
+		Convey("Should write back to the response writer a statusOK", func() {
+			resp, _ := http.Get(unitTestServer.URL + "/health")
+			So(resp.StatusCode, ShouldEqual, 200)
+
 		})
 	})
 }
