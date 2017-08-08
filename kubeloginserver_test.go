@@ -24,7 +24,7 @@ func TestServerSpecs(t *testing.T) {
 			response.Body.Close()
 			So(response.StatusCode, ShouldEqual, 404)
 		})
-		Convey("The cliHandleLogin function", func() {
+		Convey("The handleCliLogin function", func() {
 			Convey("should get a status code 303 for a correct redirect", func() {
 				url := unitTestServer.URL + "/login?port=8000"
 				authClient.client = &http.Client{
@@ -85,12 +85,11 @@ func TestGetField(t *testing.T) {
 	})
 }
 
-func TestGenerateSendBackURL(t *testing.T) {
-	Convey("generateSendBackURL", t, func() {
-		Convey("should generate an error due to the token not containing a claims field", func() {
-			testSendBackURL, err := generateSendBackURL("asdasdadsad", "3000")
-			log.Print(err)
-			So(testSendBackURL, ShouldPanic)
+func TestMakeRedisClient(t *testing.T) {
+	Convey("makeRedisClient", t, func() {
+		Convey("should fail since it cant find the environment variable holding the address", func() {
+			err := makeRedisClient()
+			So(err, ShouldNotEqual, nil)
 		})
 	})
 }
