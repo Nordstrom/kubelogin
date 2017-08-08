@@ -218,6 +218,7 @@ func getMux(authClient authOClient) *http.ServeMux {
 	newMux.HandleFunc("/login", authClient.handleCliLogin)
 	newMux.HandleFunc("/health", healthHandler)
 	newMux.HandleFunc("/exchange", exchangeHandler)
+	newMux.Handle("/metrics", prometheus.Handler())
 	return newMux
 }
 
