@@ -174,18 +174,29 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedMs))
 
 	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
-
 }
 
-func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
-	startTime := time.Now()
-	token := getField(request, tokenField)
+func exchangeToken(token string) (string, error) {
 	jwt, err := redisClient.Get(token).Result()
 	if err != nil {
 		errorCounter.Inc()
 		log.Print("error counter incremented")
 		log.Printf("Error exchanging token for jwt: %v", err)
+		return "", err
+	}
+	return jwt, nil
+}
+
+func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
+	startTime := time.Now()
+	token := getField(request, tokenField)
+	jwt, err := exchangeToken(token)
+	if err != nil {
+		errorCounter.Inc()
+		log.Print("error counter incremented")
+		log.Printf("Error exchanging token: %v", err)
 		http.Error(writer, "Failed to find jwt for token "+token, http.StatusUnauthorized)
+		return
 	}
 	successCounter.Inc()
 	log.Print("success counter incremented")
@@ -197,27 +208,40 @@ func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Write([]byte(jwt))
 }
 
-/*
-   this will take the jwt and port and generate the url that will be redirected to
-*/
-func generateSendBackURL(jwt string, port string) (string, error) {
+func setToken(jwt, token string) error {
+	if err := redisClient.Set(token, jwt, 10*time.Second).Err(); err != nil {
+		errorCounter.Inc()
+		log.Print(("error counter incremented"))
+		log.Printf("Error storing token in database: %v", err)
+		return err
+	}
+	return nil
+}
+
+func generateToken(jwt string) (string, error) {
 	// Generate sha sum for jwt
 	hash := sha1.New()
 	hash.Write([]byte(jwt))
 	token := hash.Sum(nil)
 	tokenCounter.Inc()
 	log.Print("token counter incremented")
-	stringToken := fmt.Sprintf("%x", token)
+	if err := setToken(jwt, fmt.Sprintf("%x", token)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", token), nil
+}
 
-	//store jwt in "database" by shasum
-	err := redisClient.Set(stringToken, jwt, 10*time.Second).Err()
+/*
+   this will take the jwt and port and generate the url that will be redirected to
+*/
+func generateSendBackURL(jwt string, port string) (string, error) {
+	stringToken, err := generateToken(jwt)
 	if err != nil {
 		errorCounter.Inc()
 		log.Print(("error counter incremented"))
-		log.Printf("Error storing token in database: %v", err)
+		log.Printf("Error when setting token in database")
 		return "", err
 	}
-
 	sendBackURL := "http://localhost:" + port + "/client?token=" + stringToken
 	return sendBackURL, nil
 }
