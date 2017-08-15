@@ -20,17 +20,17 @@ The following need to be set up in the Kubernetes environment
 
 | Environment Variables | Description |
 | :--- | :--- |
-| OIDC_PROVIDER_URL | this is the base url of the OIDC provider i.e. https://example.oidcprovider.com/ |
-| LISTEN_PORT | the port that the server will listen on. Should match port in deployment.yaml file |
-| GROUPS_CLAIM | if the groups claim is different than just 'groups' this environment variable should be set. If not, you can edit the handleCliLogin function to use the string "groups" |
-| USER_CLAIM | this user claim is most often an email. If the claim field is different than just 'email' then this environment variable should be set. If not, you can edit the handleCliLogin function to use the string "email" |
-| CLIENT_ID | this should be set up as a secret in kubernetes that the deployment.yaml file looks for  |
-| CLIENT_SECRET | same as client id |
-| REDIRECT_URL | this is the url that the oidc provider will use to callback to this server |
-| REDIS_URL | upon deploying redis in the same namespace as this server, this will be set |
-| REDIS_PASSWORD | same as redis url |
+| **OIDC_PROVIDER_URL** | this is the base url of the OIDC provider i.e. https://example.oidcprovider.com/ |
+| **LISTEN_PORT** | the port that the server will listen on. Should match port in deployment.yaml file |
+| **GROUPS_CLAIM** | if the groups claim is different than just 'groups' this environment variable should be set. If not, you can edit the handleCliLogin function to use the string "groups" |
+| **USER_CLAIM** | this user claim is most often an email. If the claim field is different than just 'email' then this environment variable should be set. If not, you can edit the handleCliLogin function to use the string "email" |
+| **CLIENT_ID** | this should be set up as a secret in kubernetes that the deployment.yaml file looks for  |
+| **CLIENT_SECRET** | same as client id |
+| **REDIRECT_URL** | this is the url that the oidc provider will use to callback to this server |
+| **REDIS_URL** | upon deploying redis in the same namespace as this server, this will be set |
+| **REDIS_PASSWORD** | same as redis url |
 
 ## Deploy
 
-Deployment should be handled through helm charts. A makefile will help with setting the environment variables that are not secrets or redis based
-Helm documentation: https://github.com/kubernetes/helm/blob/master/docs/index.md
+- Deployment should be handled through helm charts. A makefile will help with setting the environment variables that are not secrets or redis based
+- Helm documentation: https://github.com/kubernetes/helm/blob/master/docs/index.md
