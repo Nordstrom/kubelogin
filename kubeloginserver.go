@@ -211,7 +211,7 @@ func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
 func setToken(jwt, token string) error {
 	if err := redisClient.Set(token, jwt, 10*time.Second).Err(); err != nil {
 		errorCounter.Inc()
-		log.Print(("error counter incremented"))
+		log.Print("error counter incremented")
 		log.Printf("Error storing token in database: %v", err)
 		return err
 	}
