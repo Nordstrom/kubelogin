@@ -5,15 +5,15 @@ Repo for the kubelogin Server
 # Usage
 This Server is to be deployed on kubernetes and will act as a way of retrieving a JWT from an OIDC provider and sending it back to the client running the kubelogin CLI code.
 
--Prometheus metrics are handled through the /metrics endpoint
+- Prometheus metrics are handled through the /metrics endpoint
 
--A health check is provided through the /health endpoint
+- A health check is provided through the /health endpoint
 
--The initial login to the server that redirects to the specified OIDC provider is handled through the /login endpoint
+- The initial login to the server that redirects to the specified OIDC provider is handled through the /login endpoint
 
--The server listens for a response from the OIDC provider on the /callback endpoint
+- The server listens for a response from the OIDC provider on the /callback endpoint
 
--The server listens for the custom token for JWT exchange request on the /exchange endpoint 
+- The server listens for the custom token for JWT exchange request on the /exchange endpoint 
 
 ## Pre-Deploy Action & Configuration
 In the kubernetes environment there needs to be the following environment variables
@@ -30,4 +30,4 @@ In the kubernetes environment there needs to be the following environment variab
 ## Deploy
 
 Deployment should be handled through helm charts. A makefile will help with setting the environment variables that are not secrets or redis based
-
+Helm documentation: https://github.com/kubernetes/helm/blob/master/docs/index.md
