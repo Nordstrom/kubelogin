@@ -8,7 +8,9 @@ This Server is to be deployed on kubernetes and will act as a way of retrieving 
 -Prometheus metrics are handled through the /metrics endpoint
 -A health check is provided through the /health endpoint
 -The initial login to the server that redirects to the specified OIDC provider is handled through the /login endpoint
+
 -The server listens for a response from the OIDC provider on the /callback endpoint
+
 -The server listens for the custom token for JWT exchange request on the /exchange endpoint 
 
 ## Pre-Deploy Action & Configuration
