@@ -6,7 +6,9 @@ Repo for the kubelogin Server
 This Server is to be deployed on kubernetes and will act as a way of retrieving a JWT from an OIDC provider and sending it back to the client running the kubelogin CLI code.
 
 -Prometheus metrics are handled through the /metrics endpoint
+
 -A health check is provided through the /health endpoint
+
 -The initial login to the server that redirects to the specified OIDC provider is handled through the /login endpoint
 
 -The server listens for a response from the OIDC provider on the /callback endpoint
