@@ -1,6 +1,25 @@
-# kubelogin Server [![Build Status](https://travis-ci.org/Nordstrom/kubelogin.svg)](https://travis-ci.org/Nordstrom/kubelogin)
+# Kubelogin [![Build Status](https://travis-ci.org/Nordstrom/kubelogin.svg)](https://travis-ci.org/Nordstrom/kubelogin)
 
-Repo for the kubelogin Server
+Repo for the kubelogin Server and CLI
+
+# CLI
+
+# Usage 
+The intended usage of this CLI is to communicate with the kubelogin server to set the token field of the kubectl config file. The kubernetes API server will use this token for OIDC authentication.
+
+The url to the kubelogin server is formatted as: https://clustername.server_hostname/login?port=
+
+## Pre-Deploy Action & Configuration
+1. Move binary file into bin directory
+2. Add an environment variable labeled SERVER_HOSTNAME to avoid setting the --host flag everytime. This server_hostname is a value that should not change often if at all.
+
+## Deploy
+1. --user is an optional flag that can be set which will specify what username you'd like to be set in the kube config file. This defaults to auth_user.
+2. --cluster is an optional flag to specify an exact clustername for the path to the server. This is set to current if no cluster is specified.
+3. --host is an optional flag to specify the rest of the URL to the server after clustername. This looks for an environment variable if not set.
+
+
+#Server
 
 # Usage
 This Server is to be deployed on kubernetes and will act as a way of retrieving a JWT from an OIDC provider and sending it back to the client running the kubelogin CLI code.
