@@ -94,9 +94,8 @@ func (authClient *authOClient) handleCLILogin(writer http.ResponseWriter, reques
 
 	portState := request.FormValue(portField)
 	if portState == "" {
-		log.Print("missing port in request from client")
 		errorCounter.Inc()
-		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		http.Error(writer, "No return port in URL", http.StatusBadRequest)
 		return
 	}
 	var scopes = []string{"openid", os.Getenv("GROUPS_CLAIM"), os.Getenv("USER_CLAIM")}
