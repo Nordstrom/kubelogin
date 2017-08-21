@@ -2,16 +2,20 @@
 
 Repo for the kubelogin Server and CLI
 
+
 # CLI
 
-# Usage 
+
+## Usage 
 The intended usage of this CLI is to communicate with the kubelogin server to set the token field of the kubectl config file. The kubernetes API server will use this token for OIDC authentication.
 
 The url to the kubelogin server is formatted as: https://clustername.server_hostname/login?port=
 
+
 ## Pre-Deploy Action & Configuration
 1. Move binary file into bin directory
 2. Add an environment variable labeled SERVER_HOSTNAME to avoid setting the --host flag everytime. This server_hostname is a value that should not change often if at all.
+
 
 ## Deploy
 1. --user is an optional flag that can be set which will specify what username you'd like to be set in the kube config file. This defaults to auth_user.
@@ -19,9 +23,10 @@ The url to the kubelogin server is formatted as: https://clustername.server_host
 3. --host is an optional flag to specify the rest of the URL to the server after clustername. This looks for an environment variable if not set.
 
 
-#Server
+# Server
 
-# Usage
+
+## Usage
 This Server is to be deployed on kubernetes and will act as a way of retrieving a JWT from an OIDC provider and sending it back to the client running the kubelogin CLI code.
 
 - Prometheus metrics are handled through the /metrics endpoint
@@ -33,6 +38,7 @@ This Server is to be deployed on kubernetes and will act as a way of retrieving 
 - The server listens for a response from the OIDC provider on the /callback endpoint
 
 - The server listens for the custom token for JWT exchange request on the /exchange endpoint
+
 
 ## Pre-Deploy Action & Configuration
 The following need to be set up in the Kubernetes environment
@@ -50,6 +56,5 @@ The following need to be set up in the Kubernetes environment
 | **REDIS_PASSWORD** | same as Redis URL |
 
 ## Deploy
-
 - Deployment should be handled through helm charts. A Makefile will help with setting the environment variables that are not secrets or Redis based
 - Helm documentation: https://github.com/kubernetes/helm/blob/master/docs/index.md
