@@ -40,20 +40,20 @@ const (
 var (
 	redisClient  *redis.Client
 	errorCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "kubelogin_errorCounter",
+		Name: "kubelogin_errors_total",
 		Help: "number of times an error occurs",
 	})
 	successCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "kubelogin_successCounter",
+		Name: "kubelogin_logins_total",
 		Help: "number of times the server returns a full jwt successfully",
 	})
 	tokenCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "kubelogin_tokenCounter",
+		Name: "kubelogin_tokens_generated_total",
 		Help: "number of times the server generates a token to go into redis",
 	})
 	serverResponseLatencies = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name: "kubelogin_serverResponseLatencies",
-		Help: "the latency of the server functions. classified by the request method",
+		Name: "kubelogin_server_request_duration_seconds_bucket",
+		Help: "tracks the duration of each response handler. classified by the request method",
 	},
 		[]string{"method"})
 )
@@ -89,14 +89,13 @@ func getField(request *http.Request, fieldName string) string {
    we set the scopes to be openid, username, and groups so we get a jwt later with the needed info
    we then redirect to the login page with the necessary info.
 */
-func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, request *http.Request) {
+func (authClient *authOClient) handleCLILogin(writer http.ResponseWriter, request *http.Request) {
 	startTime := time.Now()
 
 	portState := request.FormValue(portField)
 	if portState == "" {
 		log.Print("missing port in request from client")
 		errorCounter.Inc()
-		log.Print("error count incremented")
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -104,8 +103,8 @@ func (authClient *authOClient) handleCliLogin(writer http.ResponseWriter, reques
 	authCodeURL := authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
 
 	elapsedTime := time.Since(startTime)
-	elapsedMs := elapsedTime / time.Millisecond
-	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedMs))
+	elapsedSec := elapsedTime / time.Second
+	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedSec))
 
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
@@ -120,7 +119,6 @@ func (authClient *authOClient) doAuthDance(requestContext context.Context, authC
 	token, err = authClient.getOAuth2Config(nil).Exchange(oidcClientContext, authCode)
 	if err != nil {
 		errorCounter.Inc()
-		log.Print("error count incremented")
 		log.Printf("Failed to exchange token. Error: %v", err)
 		return "", err
 	}
@@ -128,7 +126,6 @@ func (authClient *authOClient) doAuthDance(requestContext context.Context, authC
 	rawIDToken, ok := token.Extra(idTokenField).(string)
 	if !ok {
 		errorCounter.Inc()
-		log.Print("error counter incremented")
 		log.Print("Failed to get the id_token field")
 		return "", err
 	}
@@ -147,7 +144,6 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	port := getField(request, stateField)
 	if authCode == "" || port == "" {
 		errorCounter.Inc()
-		log.Print("error counter incremented")
 		log.Printf("Error! Need authcode and port. Received this authcode: [%s] | Received this port: [%s]", authCode, port)
 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
@@ -155,7 +151,6 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	jwt, err := authClient.doAuthDance(request.Context(), authCode)
 	if err != nil {
 		errorCounter.Inc()
-		log.Print("error counter incremented")
 		log.Print("Error in auth: " + err.Error())
 		http.Error(writer, fmt.Sprintf("Error in auth"), http.StatusInternalServerError)
 		return
@@ -164,14 +159,13 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 	sendBackURL, err := generateSendBackURL(jwt, port)
 	if err != nil {
 		errorCounter.Inc()
-		log.Print("error counter incremented ")
 		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
 		return
 	}
 
 	elapsedTime := time.Since(startTime)
-	elapsedMs := elapsedTime / time.Millisecond
-	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedMs))
+	elapsedSec := elapsedTime / time.Second
+	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedSec))
 
 	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
 }
@@ -180,7 +174,6 @@ func exchangeToken(token string) (string, error) {
 	jwt, err := redisClient.Get(token).Result()
 	if err != nil {
 		errorCounter.Inc()
-		log.Print("error counter incremented")
 		log.Printf("Error exchanging token for jwt: %v", err)
 		return "", err
 	}
@@ -193,17 +186,14 @@ func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
 	jwt, err := exchangeToken(token)
 	if err != nil {
 		errorCounter.Inc()
-		log.Print("error counter incremented")
-		log.Printf("Error exchanging token: %v", err)
-		http.Error(writer, "Failed to find jwt for token "+token, http.StatusUnauthorized)
+		http.Error(writer, "Invalid token: "+token, http.StatusUnauthorized)
 		return
 	}
 	successCounter.Inc()
-	log.Print("success counter incremented")
 
 	elapsedTime := time.Since(startTime)
-	elapsedMs := elapsedTime / time.Millisecond
-	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedMs))
+	elapsedSec := elapsedTime / time.Second
+	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedSec))
 
 	writer.Write([]byte(jwt))
 }
@@ -211,7 +201,6 @@ func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
 func setToken(jwt, token string) error {
 	if err := redisClient.Set(token, jwt, 10*time.Second).Err(); err != nil {
 		errorCounter.Inc()
-		log.Print("error counter incremented")
 		log.Printf("Error storing token in database: %v", err)
 		return err
 	}
@@ -224,21 +213,17 @@ func generateToken(jwt string) (string, error) {
 	hash.Write([]byte(jwt))
 	token := hash.Sum(nil)
 	tokenCounter.Inc()
-	log.Print("token counter incremented")
 	if err := setToken(jwt, fmt.Sprintf("%x", token)); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("%x", token), nil
 }
 
-/*
-   this will take the jwt and port and generate the url that will be redirected to
-*/
+// this will take the jwt and port and generate the url that will be redirected to
 func generateSendBackURL(jwt string, port string) (string, error) {
 	stringToken, err := generateToken(jwt)
 	if err != nil {
 		errorCounter.Inc()
-		log.Print(("error counter incremented"))
 		log.Printf("Error when setting token in database")
 		return "", err
 	}
@@ -265,7 +250,7 @@ func healthHandler(writer http.ResponseWriter, request *http.Request) {
 func getMux(authClient authOClient) *http.ServeMux {
 	newMux := http.NewServeMux()
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
-	newMux.HandleFunc("/login", authClient.handleCliLogin)
+	newMux.HandleFunc("/login", authClient.handleCLILogin)
 	newMux.HandleFunc("/health", healthHandler)
 	newMux.HandleFunc("/exchange", exchangeHandler)
 	newMux.Handle("/metrics", prometheus.Handler())
@@ -278,12 +263,11 @@ func makeRedisClient() error {
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
-	ping, err := redisClient.Ping().Result()
+	_, err := redisClient.Ping().Result()
 	if err != nil {
 		log.Printf("Error pinging Redis database: %v", err)
 		return err
 	}
-	log.Printf("The result from pinging the database is %s", ping)
 	return nil
 }
 
@@ -302,7 +286,7 @@ func init() {
 */
 func main() {
 	if err := makeRedisClient(); err != nil {
-		log.Fatalf("Error communicating with redis: %v", err)
+		log.Fatalf("Error communicating with Redis: %v", err)
 	}
 	contxt := oidc.ClientContext(context.Background(), http.DefaultClient)
 	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER_URL"))

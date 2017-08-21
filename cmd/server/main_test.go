@@ -24,7 +24,7 @@ func TestServerSpecs(t *testing.T) {
 			response.Body.Close()
 			So(response.StatusCode, ShouldEqual, 404)
 		})
-		Convey("The handleCliLogin function", func() {
+		Convey("The handleCLILogin function", func() {
 			Convey("should get a status code 303 for a correct redirect", func() {
 				url := unitTestServer.URL + "/login?port=8000"
 				authClient.client = &http.Client{

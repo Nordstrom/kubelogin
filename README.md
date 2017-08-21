@@ -13,24 +13,24 @@ This Server is to be deployed on kubernetes and will act as a way of retrieving 
 
 - The server listens for a response from the OIDC provider on the /callback endpoint
 
-- The server listens for the custom token for JWT exchange request on the /exchange endpoint 
+- The server listens for the custom token for JWT exchange request on the /exchange endpoint
 
 ## Pre-Deploy Action & Configuration
 The following need to be set up in the Kubernetes environment
 
 | Environment Variables | Description |
 | :--- | :--- |
-| **OIDC_PROVIDER_URL** | this is the base url of the OIDC provider i.e. https://example.oidcprovider.com/ |
+| **OIDC_PROVIDER_URL** | this is the base URL of the OIDC provider i.e. https://example.oidcprovider.com/ |
 | **LISTEN_PORT** | the port that the server will listen on. Should match port in deployment.yaml file |
-| **GROUPS_CLAIM** | if the groups claim is different than just 'groups' this environment variable should be set. If not, you can edit the handleCliLogin function to use the string "groups" |
+| **GROUPS_CLAIM** | if the groups claim is different than just 'groups' this environment variable should be set. If not, you can edit the handleCLILogin function to use the string "groups" |
 | **USER_CLAIM** | this user claim is most often an email. If the claim field is different than just 'email' then this environment variable should be set. If not, you can edit the handleCliLogin function to use the string "email" |
-| **CLIENT_ID** | this should be set up as a secret in kubernetes that the deployment.yaml file looks for  |
+| **CLIENT_ID** | this should be set up as a secret in Kubernetes that the deployment.yaml file looks for  |
 | **CLIENT_SECRET** | same as client id |
-| **REDIRECT_URL** | this is the url that the oidc provider will use to callback to this server |
-| **REDIS_URL** | upon deploying redis in the same namespace as this server, this will be set |
-| **REDIS_PASSWORD** | same as redis url |
+| **REDIRECT_URL** | this is the URL that the OIDC provider will use to callback to this server |
+| **REDIS_URL** | upon deploying Redis in the same namespace as this server, this will be set |
+| **REDIS_PASSWORD** | same as Redis URL |
 
 ## Deploy
 
-- Deployment should be handled through helm charts. A makefile will help with setting the environment variables that are not secrets or redis based
+- Deployment should be handled through helm charts. A Makefile will help with setting the environment variables that are not secrets or Redis based
 - Helm documentation: https://github.com/kubernetes/helm/blob/master/docs/index.md
