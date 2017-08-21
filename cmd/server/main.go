@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/coreos/go-oidc"
@@ -172,8 +173,9 @@ func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
 	token := getField(request, tokenField)
 	jwt, err := exchangeToken(token)
 	if err != nil {
+		log.Print(err)
 		errorCounter.Inc()
-		http.Error(writer, "Invalid token: "+token, http.StatusUnauthorized)
+		http.Error(writer, "Invalid token", http.StatusUnauthorized)
 		return
 	}
 	successCounter.Inc()
@@ -186,7 +188,13 @@ func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
 }
 
 func setToken(jwt, token string) error {
-	if err := redisClient.Set(token, jwt, 10*time.Second).Err(); err != nil {
+	rawTime, err := strconv.Atoi(os.Getenv("REDIS_TTL"))
+	if err != nil {
+		errorCounter.Inc()
+		return err
+	}
+	ttl := time.Duration(rawTime) * time.Second
+	if err := redisClient.Set(token, jwt, ttl).Err(); err != nil {
 		errorCounter.Inc()
 		log.Printf("Error storing token in database: %v", err)
 		return err
@@ -250,11 +258,12 @@ func makeRedisClient() error {
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
-	_, err := redisClient.Ping().Result()
+	ping, err := redisClient.Ping().Result()
 	if err != nil {
 		log.Printf("Error pinging Redis database: %v", err)
 		return err
 	}
+	log.Print(ping)
 	return nil
 }
 
