@@ -15,9 +15,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-/*
-   struct that contains necessary oauth/oidc information
-*/
+// struct that contains necessary oauth/oidc information
 type authOClient struct {
 	clientID     string
 	clientSecret string
@@ -58,9 +56,7 @@ var (
 		[]string{"method"})
 )
 
-/*
-   the config for oauth2, scopes contain info we want back from the auth server
-*/
+// the config for oauth2, scopes contain info we want back from the auth server
 func (authClient *authOClient) getOAuth2Config(scopes []string) *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     authClient.clientID,
@@ -71,9 +67,7 @@ func (authClient *authOClient) getOAuth2Config(scopes []string) *oauth2.Config {
 	}
 }
 
-/*
-   used to grab the field from the callback request
-*/
+// used to grab the field from the callback request
 func getField(request *http.Request, fieldName string) string {
 
 	if request.FormValue(fieldName) != "" {
@@ -83,12 +77,8 @@ func getField(request *http.Request, fieldName string) string {
 	return ""
 }
 
-/*
-   handles the get request from the client clicking the link they receive from the CLI
-   this will grab the port and sets it as the state for later use
-   we set the scopes to be openid, username, and groups so we get a jwt later with the needed info
-   we then redirect to the login page with the necessary info.
-*/
+// handles the get request from the client clicking the link they receive from the CLI
+// redirects to the OIDC providers login page
 func (authClient *authOClient) handleCLILogin(writer http.ResponseWriter, request *http.Request) {
 	startTime := time.Now()
 
@@ -132,10 +122,8 @@ func (authClient *authOClient) doAuthDance(requestContext context.Context, authC
 	return rawIDToken, nil
 }
 
-/*
-   handles the callback from the auth server, exchanges the authcode, clientID, clientSecret for a rawToken which holds an id_token
-   field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
-*/
+// handles the callback from the auth server, exchanges the authcode, clientID, clientSecret for a rawToken which holds an id_token
+// field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
 func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, request *http.Request) {
 	startTime := time.Now()
 
@@ -206,8 +194,8 @@ func setToken(jwt, token string) error {
 	return nil
 }
 
+// Generate sha sum for jwt
 func generateToken(jwt string) (string, error) {
-	// Generate sha sum for jwt
 	hash := sha1.New()
 	hash.Write([]byte(jwt))
 	token := hash.Sum(nil)
@@ -230,7 +218,7 @@ func generateSendBackURL(jwt string, port string) (string, error) {
 	return sendBackURL, nil
 }
 
-//sets up the struct for later use
+// sets up the struct for later use
 func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider) authOClient {
 	var authClient authOClient
 	authClient.clientID = clientID
@@ -270,7 +258,7 @@ func makeRedisClient() error {
 	return nil
 }
 
-//registers the error and success counters with prometheus
+// registers the error and success counters with prometheus
 func init() {
 	prometheus.MustRegister(errorCounter)
 	prometheus.MustRegister(successCounter)
@@ -278,11 +266,9 @@ func init() {
 	prometheus.MustRegister(serverResponseLatencies)
 }
 
-/*
-   sets up a new mux. upon a user clicking the link to our server, it will be handled by the handleLogin function.
-   When the auth server posts to our server it will be controlled by the callbackHandler. This is also initial setup for
-   the struct to contain necessary information
-*/
+// sets up a new mux with the necessary handlers for the endpoints that are required
+// creates our Redis client for communication
+// creates an auth client based on the environment variables and provider
 func main() {
 	if err := makeRedisClient(); err != nil {
 		log.Fatalf("Error communicating with Redis: %v", err)
