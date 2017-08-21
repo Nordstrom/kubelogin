@@ -62,9 +62,8 @@ func TestServerSpecs(t *testing.T) {
 			})
 		})
 		Convey("exchangeHandler", func() {
-			Convey("should return a internal server error due to dealing with redis offline", func() {
-				err := makeRedisClient()
-				log.Print(err)
+			Convey("should return a internal server error due to Redis not being available", func() {
+				makeRedisClient()
 				exchangeURL := unitTestServer.URL + "/exchange?token=hoopla"
 				response, _ := http.Get(exchangeURL)
 				response.Body.Close()
@@ -97,7 +96,7 @@ func TestGetField(t *testing.T) {
 
 func TestMakeRedisClient(t *testing.T) {
 	Convey("makeRedisClient", t, func() {
-		Convey("should fail since it cant find the environment variable holding the address", func() {
+		Convey("should fail since no Redis address environment variable was set", func() {
 			err := makeRedisClient()
 			So(err, ShouldNotEqual, nil)
 		})
@@ -115,7 +114,7 @@ func TestGenerateToken(t *testing.T) {
 
 func TestExchangeToken(t *testing.T) {
 	Convey("exchangeToken", t, func() {
-		Convey("should error out since we can't access the redis cache offline", func() {
+		Convey("should error out since we can't access the Redis cache offline", func() {
 			_, err := exchangeToken("hoopla")
 			So(err, ShouldNotEqual, nil)
 		})
@@ -124,7 +123,7 @@ func TestExchangeToken(t *testing.T) {
 
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
-		Convey("should pass since we will encounter errors when trying to add our value to redis", func() {
+		Convey("should pass since we will encounter errors when trying to add our value to Redis", func() {
 			_, err := generateSendBackURL("hoopla", "3000")
 			log.Printf("The err is %s", err)
 			So(err, ShouldNotEqual, nil)
