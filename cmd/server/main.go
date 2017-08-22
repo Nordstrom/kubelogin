@@ -17,7 +17,7 @@ import (
 )
 
 // struct that contains necessary oauth/oidc information
-type authOClient struct {
+type oidcClient struct {
 	clientID     string
 	clientSecret string
 	redirectURI  string
@@ -58,7 +58,7 @@ var (
 )
 
 // the config for oauth2, scopes contain info we want back from the auth server
-func (authClient *authOClient) getOAuth2Config(scopes []string) *oauth2.Config {
+func (authClient *oidcClient) getOAuth2Config(scopes []string) *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     authClient.clientID,
 		ClientSecret: authClient.clientSecret,
@@ -80,7 +80,7 @@ func getField(request *http.Request, fieldName string) string {
 
 // handles the get request from the client clicking the link they receive from the CLI
 // redirects to the OIDC providers login page
-func (authClient *authOClient) handleCLILogin(writer http.ResponseWriter, request *http.Request) {
+func (authClient *oidcClient) handleCLILogin(writer http.ResponseWriter, request *http.Request) {
 	startTime := time.Now()
 
 	portState := request.FormValue(portField)
@@ -92,14 +92,14 @@ func (authClient *authOClient) handleCLILogin(writer http.ResponseWriter, reques
 	var scopes = []string{"openid", os.Getenv("GROUPS_CLAIM"), os.Getenv("USER_CLAIM")}
 	authCodeURL := authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
 
+	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
+
 	elapsedTime := time.Since(startTime)
 	elapsedSec := elapsedTime / time.Second
 	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedSec))
-
-	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
 }
 
-func (authClient *authOClient) doAuthDance(requestContext context.Context, authCode string) (string, error) {
+func (authClient *oidcClient) doAuthDance(requestContext context.Context, authCode string) (string, error) {
 	var (
 		err   error
 		token *oauth2.Token
@@ -124,8 +124,8 @@ func (authClient *authOClient) doAuthDance(requestContext context.Context, authC
 }
 
 // handles the callback from the auth server, exchanges the authcode, clientID, clientSecret for a rawToken which holds an id_token
-// field that has the JWT. Upon verification of the jwt, we pull the claims out which is the info that is needed to send back to the client
-func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, request *http.Request) {
+// field that has the JWT. Upon verification of the JWT, we pull the claims out which is the info that is needed to send back to the client
+func (authClient *oidcClient) callbackHandler(writer http.ResponseWriter, request *http.Request) {
 	startTime := time.Now()
 
 	authCode := getField(request, authCodeField)
@@ -151,11 +151,11 @@ func (authClient *authOClient) callbackHandler(writer http.ResponseWriter, reque
 		return
 	}
 
+	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
+
 	elapsedTime := time.Since(startTime)
 	elapsedSec := elapsedTime / time.Second
 	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedSec))
-
-	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
 }
 
 func exchangeToken(token string) (string, error) {
@@ -180,11 +180,11 @@ func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 	successCounter.Inc()
 
+	writer.Write([]byte(jwt))
+
 	elapsedTime := time.Since(startTime)
 	elapsedSec := elapsedTime / time.Second
 	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedSec))
-
-	writer.Write([]byte(jwt))
 }
 
 func setToken(jwt, token string) error {
@@ -202,7 +202,7 @@ func setToken(jwt, token string) error {
 	return nil
 }
 
-// Generate sha sum for jwt
+// Generate SHA sum for JWT
 func generateToken(jwt string) (string, error) {
 	hash := sha1.New()
 	hash.Write([]byte(jwt))
@@ -214,7 +214,7 @@ func generateToken(jwt string) (string, error) {
 	return fmt.Sprintf("%x", token), nil
 }
 
-// this will take the jwt and port and generate the url that will be redirected to
+// this will take the JWT and port and generate the URL that will be redirected to
 func generateSendBackURL(jwt string, port string) (string, error) {
 	stringToken, err := generateToken(jwt)
 	if err != nil {
@@ -227,8 +227,8 @@ func generateSendBackURL(jwt string, port string) (string, error) {
 }
 
 // sets up the struct for later use
-func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider) authOClient {
-	var authClient authOClient
+func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider) oidcClient {
+	var authClient oidcClient
 	authClient.clientID = clientID
 	authClient.clientSecret = clientSecret
 	authClient.redirectURI = redirectURI
@@ -242,7 +242,8 @@ func healthHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
 }
 
-func getMux(authClient authOClient) *http.ServeMux {
+// sets up a new mux with the necessary handlers for the endpoints that are required
+func getMux(authClient oidcClient) *http.ServeMux {
 	newMux := http.NewServeMux()
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
 	newMux.HandleFunc("/login", authClient.handleCLILogin)
@@ -275,15 +276,14 @@ func init() {
 	prometheus.MustRegister(serverResponseLatencies)
 }
 
-// sets up a new mux with the necessary handlers for the endpoints that are required
 // creates our Redis client for communication
 // creates an auth client based on the environment variables and provider
 func main() {
 	if err := makeRedisClient(); err != nil {
 		log.Fatalf("Error communicating with Redis: %v", err)
 	}
-	contxt := oidc.ClientContext(context.Background(), http.DefaultClient)
-	provider, err := oidc.NewProvider(contxt, os.Getenv("OIDC_PROVIDER_URL"))
+	ctx := oidc.ClientContext(context.Background(), http.DefaultClient)
+	provider, err := oidc.NewProvider(ctx, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
