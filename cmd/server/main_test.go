@@ -24,7 +24,7 @@ func TestServerSpecs(t *testing.T) {
 			response.Body.Close()
 			So(response.StatusCode, ShouldEqual, 404)
 		})
-		Convey("The cliHandleLogin function", func() {
+		Convey("The handleCLILogin function", func() {
 			Convey("should get a status code 303 for a correct redirect", func() {
 				url := unitTestServer.URL + "/login?port=8000"
 				authClient.client = &http.Client{
@@ -61,6 +61,15 @@ func TestServerSpecs(t *testing.T) {
 				So(response.StatusCode, ShouldEqual, http.StatusInternalServerError)
 			})
 		})
+		Convey("exchangeHandler", func() {
+			Convey("should return a internal server error due to Redis not being available", func() {
+				makeRedisClient()
+				exchangeURL := unitTestServer.URL + "/exchange?token=hoopla"
+				response, _ := http.Get(exchangeURL)
+				response.Body.Close()
+				So(response.StatusCode, ShouldEqual, http.StatusUnauthorized)
+			})
+		})
 	})
 }
 
@@ -85,12 +94,39 @@ func TestGetField(t *testing.T) {
 	})
 }
 
+func TestMakeRedisClient(t *testing.T) {
+	Convey("makeRedisClient", t, func() {
+		Convey("should fail since no Redis address environment variable was set", func() {
+			err := makeRedisClient()
+			So(err, ShouldNotEqual, nil)
+		})
+	})
+}
+
+func TestGenerateToken(t *testing.T) {
+	Convey("generateToken", t, func() {
+		Convey("should pass since we are just returning a string", func() {
+			token, _ := generateToken("hoopla")
+			So(token, ShouldNotEqual, nil)
+		})
+	})
+}
+
+func TestExchangeToken(t *testing.T) {
+	Convey("exchangeToken", t, func() {
+		Convey("should error out since we can't access the Redis cache offline", func() {
+			_, err := exchangeToken("hoopla")
+			So(err, ShouldNotEqual, nil)
+		})
+	})
+}
+
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
-		Convey("should generate an error due to the token not containing a claims field", func() {
-			testSendBackURL, err := generateSendBackURL("asdasdadsad", "3000")
-			log.Print(err)
-			So(testSendBackURL, ShouldPanic)
+		Convey("should pass since we will encounter errors when trying to add our value to Redis", func() {
+			_, err := generateSendBackURL("hoopla", "3000")
+			log.Printf("The err is %s", err)
+			So(err, ShouldNotEqual, nil)
 		})
 	})
 }
