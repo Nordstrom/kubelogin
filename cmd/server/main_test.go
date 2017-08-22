@@ -10,20 +10,11 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func incorrectURL(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "404 Page Not Found", http.StatusNotFound)
-}
-
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 		provider := &oidc.Provider{}
 		authClient := newAuthClient("foo", "bar", "redirect", provider)
 		unitTestServer := httptest.NewServer(getMux(authClient))
-		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
-			response, _ := http.Get(unitTestServer.URL)
-			response.Body.Close()
-			So(response.StatusCode, ShouldEqual, 404)
-		})
 		Convey("The handleCLILogin function", func() {
 			Convey("should get a status code 303 for a correct redirect", func() {
 				url := unitTestServer.URL + "/login?port=8000"
