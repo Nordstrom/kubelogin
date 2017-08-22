@@ -228,14 +228,14 @@ func generateSendBackURL(jwt string, port string) (string, error) {
 
 // sets up the struct for later use
 func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider) oidcClient {
-	var authClient oidcClient
-	authClient.clientID = clientID
-	authClient.clientSecret = clientSecret
-	authClient.redirectURI = redirectURI
-	authClient.client = http.DefaultClient
-	authClient.provider = provider
-	authClient.verifier = provider.Verifier(&oidc.Config{ClientID: authClient.clientID})
-	return authClient
+	return oidcClient{
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		redirectURI:  redirectURI,
+		client:       http.DefaultClient,
+		provider:     provider,
+		verifier:     provider.Verifier(&oidc.Config{ClientID: clientID}),
+	}
 }
 
 func healthHandler(writer http.ResponseWriter, request *http.Request) {
@@ -288,7 +288,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
 	listenPort := ":" + os.Getenv("LISTEN_PORT")
-	if err := http.ListenAndServe(listenPort, getMux(newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider))); err != nil {
+	authClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider)
+	if err := http.ListenAndServe(listenPort, getMux(authClient)); err != nil {
 		log.Fatal(err)
 	}
 }
