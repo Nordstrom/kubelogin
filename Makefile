@@ -7,8 +7,6 @@ build:
 build/kubelogin : cmd/server/*.go | build
 	# Build your golang app for the target OS
 	# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
-	# docker run -it -v $(PWD):/go/src/github.com/nordstorm/kubelogin -w /go/src/github.com/nordstorm/kubelogin/cmd/server golang:1.7.4 go build -v -o kubelogin
-	# mv cmd/server/kubelogin build
 	docker run -it \
 	  -v $(PWD):/go/src/github.com/nordstrom/kubelogin \
 	  -v $(PWD)/build:/go/bin \
