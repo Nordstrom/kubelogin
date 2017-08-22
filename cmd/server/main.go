@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha1"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -245,8 +244,7 @@ func healthHandler(writer http.ResponseWriter, request *http.Request) {
 
 func defaultHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	htmlTemplate, _ := template.New("test").Parse("<!doctype html><html><head><title>Welcome to Kubelogin</title></head><body><h1>Kubelogin</h1><p>For kubelogin to work appropriately, there are a few things you'll need to setup on your own machine! <br>These specs can be found on the github page <a href=https://github.com/Nordstrom/kubelogin/tree/master>here!</a> <br></p><h2>Kubelogin CLI</h2><p>To download the binary for the Kubelogin CLI click <a href=/download>here!</a></p></body></html>")
-	htmlTemplate.Execute(writer, nil)
+	fmt.Fprint(writer, "<!doctype html><html><head><title>Welcome to Kubelogin</title></head><body><h1>Kubelogin</h1><p>For kubelogin to work appropriately, there are a few things you'll need to setup on your own machine! <br>These specs can be found on the github page <a href=https://github.com/Nordstrom/kubelogin/tree/master>here!</a> <br></p><h2>Kubelogin CLI</h2><p>To download the binary for the Kubelogin CLI click <a href=/download>here!</a></p></body></html>")
 }
 
 func getMux(authClient oidcClient) *http.ServeMux {

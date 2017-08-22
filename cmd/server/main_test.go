@@ -52,6 +52,18 @@ func TestServerSpecs(t *testing.T) {
 				So(response.StatusCode, ShouldEqual, http.StatusInternalServerError)
 			})
 		})
+		Convey("defaultHandler", func() {
+			Convey("should have basic html written on the page i.e., body is not nil", func() {
+				request, _ := http.NewRequest("GET", unitTestServer.URL, nil)
+				response, _ := authClient.client.Do(request)
+				response.Body.Close()
+				So(response.Body, ShouldNotEqual, nil)
+			})
+			Convey("should return a 200 status code upon a successful connection", func() {
+				response, _ := http.Get(unitTestServer.URL)
+				So(response.StatusCode, ShouldEqual, 200)
+			})
+		})
 		Convey("exchangeHandler", func() {
 			Convey("should return a internal server error due to Redis not being available", func() {
 				makeRedisClient()
