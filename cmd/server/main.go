@@ -247,11 +247,12 @@ func defaultHandler(writer http.ResponseWriter, request *http.Request) {
 	fmt.Fprint(writer, "<!doctype html><html><head><title>Welcome to Kubelogin</title></head><body><h1>Kubelogin</h1><p>For kubelogin to work appropriately, there are a few things you'll need to setup on your own machine! <br>These specs can be found on the github page <a href=https://github.com/Nordstrom/kubelogin/tree/master>here!</a> <br></p><h2>Kubelogin CLI</h2><p>To download the binary for the Kubelogin CLI click <a href=/download>here!</a></p></body></html>")
 }
 
+//creates a mux with handlers for desired endpoints
 func getMux(authClient oidcClient) *http.ServeMux {
 	newMux := http.NewServeMux()
 	newMux.HandleFunc("/", defaultHandler)
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
-	newMux.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
+	newMux.HandleFunc("/download/darwin", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "hello world")
 	})
 	newMux.HandleFunc("/login", authClient.handleCLILogin)
