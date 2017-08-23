@@ -14,9 +14,9 @@ build/kubelogin : cmd/server/*.go | build
 	    go build -v -o /go/bin/kubelogin \
 	    github.com/nordstrom/kubelogin/cmd/server/
 
-# Build your golang app for the target OS
-# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
-build/kubelogin-cli-% : cmd/cli/*.go
+build/kubelogin-cli-% : cmd/cli/*.go | build
+	# Build your golang app for the target OS
+	# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
 	docker run -it \
 	  -v $(PWD):/go/src/github.com/nordstrom/kubelogin \
 	  -v $(PWD)/build:/go/bin \
@@ -44,7 +44,7 @@ build/download/windows/kubelogin-cli-windows.zip: build/download/windows/kubelog
 kubelogin: cmd/server/*.go
 	go build -o kubelogin
 
-kubeloginCLI: cmd/cli/*.go
+kubeloginCLI: cmd/cli/*.go | build
 	go build -o kubeloginCLI
 
 .PHONY: test_app
