@@ -24,8 +24,7 @@ build/kubelogin-cli-% : cmd/cli/*.go | build
 	  -e GOOS=$* \
 	  golang:1.7.4 \
 		go build -v -o /go/bin/kubelogin-cli-$* \
-		  github.com/nordstrom/kubelogin/cmd/cli/
-
+		  github.com/nordstrom/kubelogin/cmd/cli/ \
 
 kubelogin: cmd/server/*.go | build
 	# Build golang app for local OS
