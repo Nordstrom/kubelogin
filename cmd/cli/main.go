@@ -87,7 +87,12 @@ func generateAuthURL() (string, string, error) {
 		log.Print("err, could not find an open port")
 		return "", "", err
 	}
-	serverURL := fmt.Sprintf("https://%s.%s/login?port=%s", clusterFlag, hostFlag, portNum)
+	var serverURL string
+	if clusterFlag != "kubelogin" {
+		serverURL = fmt.Sprintf("https://kubelogin-%s.%s/login?port=%s", clusterFlag, hostFlag, portNum)
+	} else {
+		serverURL = fmt.Sprintf("https://%s.%s/login?port=%s", clusterFlag, hostFlag, portNum)
+	}
 	return serverURL, portNum, nil
 }
 
