@@ -51,7 +51,7 @@ moveLinux:
 	cd build/ && mv kubelogin-cli-linux linux/kubelogin
 
 moveWindows:
-	cd build/ && mv kubelogin-cli-windows windows/kubelogin
+	cd build/ && mv kubelogin-cli-windows windows/kubelogin.exe
 
 build/mac/kubelogin-cli-darwin.tar.gz: build/kubelogin-cli-darwin moveMac
 	cd build/mac/ && tar -czf kubelogin-cli-darwin.tar.gz kubelogin
@@ -60,7 +60,7 @@ build/linux/kubelogin-cli-linux.tar.gz: build/kubelogin-cli-linux moveLinux
 	cd build/linux/ && tar -czf kubelogin-cli-linux.tar.gz kubelogin
 
 build/windows/kubelogin-cli-windows.zip: build/kubelogin-cli-windows moveWindows
-	cd build/windows/ && zip -r -X kubelogin-cli-windows.zip kubelogin
+	cd build/windows/ && zip -r -X kubelogin-cli-windows.zip kubelogin.exe
 
 kubelogin: cmd/server/*.go | build
 	# Build golang app for local OS
