@@ -33,7 +33,12 @@ func findFreePort() (string, error) {
 }
 
 func makeExchange(token string) error {
-	url := fmt.Sprintf("https://%s.%s/exchange?token=%s", clusterFlag, hostFlag, token)
+	var url string
+	if clusterFlag != "kubelogin" {
+		url = fmt.Sprintf("https://kubelogin-%s.%s/exchange?token=%s", clusterFlag, hostFlag, token)
+	} else {
+		url = fmt.Sprintf("https://%s.%s/exchange?token=%s", clusterFlag, hostFlag, token)
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Printf("Unable to create request. %s", err)
@@ -95,7 +100,7 @@ func createMux() *http.ServeMux {
 func parseFlags() bool {
 	flag.StringVar(&hostFlag, "host", os.Getenv("SERVER_HOSTNAME"), "host name to use when generating the auth url")
 	flag.StringVar(&userFlag, "user", "auth_user", "username used in kube config")
-	flag.StringVar(&clusterFlag, "cluster", "current", "cluster id used in conjuction with host name")
+	flag.StringVar(&clusterFlag, "cluster", "kubelogin", "cluster id used in conjuction with host name")
 	flag.Parse()
 	return flag.Parsed()
 }
