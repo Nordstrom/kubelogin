@@ -228,6 +228,15 @@ func generateSendBackURL(jwt string, port string) (string, error) {
 
 // sets up the struct for later use
 func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider) oidcClient {
+	if clientID == "" {
+		log.Fatal("Client ID not set!")
+	}
+	if clientSecret == "" {
+		log.Fatal("Client Secret not set!")
+	}
+	if redirectURI == "" {
+		log.Fatal("Redirect URI not set!")
+	}
 	return oidcClient{
 		clientID:     clientID,
 		clientSecret: clientSecret,
@@ -311,6 +320,6 @@ func main() {
 	listenPort := ":" + os.Getenv("LISTEN_PORT")
 	authClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider)
 	if err := http.ListenAndServe(listenPort, getMux(authClient)); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to listen on port: %s | Error: %v", listenPort, err)
 	}
 }
