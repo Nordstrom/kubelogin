@@ -2,7 +2,7 @@ image_tag := 1.0-g
 image_name := quay.io/nordstrom/kubelogin
 
 build:
-	mkdir -p build build/mac build/linux build/windows
+	mkdir -p build build/download/mac build/download/linux build/download/windows
 
 build/kubelogin : cmd/server/*.go | build
 	# Build your golang app for the target OS
@@ -27,22 +27,22 @@ build/kubelogin-cli-% : cmd/cli/*.go | build
 		  github.com/nordstrom/kubelogin/cmd/cli/ \
 
 moveMac:
-	cd build/ && mv kubelogin-cli-darwin mac/kubelogin
+	cd build/ && mv kubelogin-cli-darwin download/mac/kubelogin
 
 moveLinux:
-	cd build/ && mv kubelogin-cli-linux linux/kubelogin
+	cd build/ && mv kubelogin-cli-linux download/linux/kubelogin
 
 moveWindows:
-	cd build/ && mv kubelogin-cli-windows windows/kubelogin.exe
+	cd build/ && mv kubelogin-cli-windows download/windows/kubelogin.exe
 
-build/mac/kubelogin-cli-darwin.tar.gz: build/kubelogin-cli-darwin moveMac
-	cd build/mac/ && tar -czf kubelogin-cli-darwin.tar.gz kubelogin
+build/download/mac/kubelogin-cli-darwin.tar.gz: build/kubelogin-cli-darwin moveMac
+	cd build/download/mac/ && tar -czf kubelogin-cli-darwin.tar.gz kubelogin
 
-build/linux/kubelogin-cli-linux.tar.gz: build/kubelogin-cli-linux moveLinux
-	cd build/linux/ && tar -czf kubelogin-cli-linux.tar.gz kubelogin
+build/download/linux/kubelogin-cli-linux.tar.gz: build/kubelogin-cli-linux moveLinux
+	cd build/download/linux/ && tar -czf kubelogin-cli-linux.tar.gz kubelogin
 
-build/windows/kubelogin-cli-windows.zip: build/kubelogin-cli-windows moveWindows
-	cd build/windows/ && zip -r -X kubelogin-cli-windows.zip kubelogin.exe
+build/download/windows/kubelogin-cli-windows.zip: build/kubelogin-cli-windows moveWindows
+	cd build/download/windows/ && zip -r -X kubelogin-cli-windows.zip kubelogin.exe
 
 kubelogin: cmd/server/*.go | build
 	# Build golang app for local OS
@@ -64,7 +64,7 @@ tarzip:
 	mv kubelogin-cli-darwin.tar.gz build/
 
 .PHONY: build_image push_image deploy teardown clean
-build_image: build/linux/kubelogin-cli-linux.tar.gz build/windows/kubelogin-cli-windows.zip build/mac/kubelogin-cli-darwin.tar.gz build/kubelogin build/Dockerfile | build
+build_image: build/download/linux/kubelogin-cli-linux.tar.gz build/download/windows/kubelogin-cli-windows.zip build/download/mac/kubelogin-cli-darwin.tar.gz build/kubelogin build/Dockerfile | build
 	docker build -t $(image_name):$(image_tag) .
 
 push_image: build_image

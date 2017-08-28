@@ -253,29 +253,16 @@ func healthHandler(writer http.ResponseWriter, request *http.Request) {
 
 func defaultHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(writer, "<!doctype html><html><head><title>Welcome to Kubelogin</title></head><body><h1>Kubelogin</h1><p>For kubelogin to work appropriately, there are a few things you'll need to setup on your own machine! <br>These specs can be found on the github page <a href=https://github.com/Nordstrom/kubelogin/tree/master>here!</a> <br></p><h2>Kubelogin CLI</h2><p>Kubelogin CLI supports the following operating systems <ul><li><a href=/download/darwin>Click me for MacOS!</a></li><li><a href=/download/linux>Click me for Linux!</a></li><li><a href=/download/windows>Click me for Windows!</a></li></ul></p></body></html>")
+	fmt.Fprint(writer, "<!doctype html><html><head><title>Welcome to Kubelogin</title></head><body><h1>Kubelogin</h1><p>For kubelogin to work appropriately, there are a few things you'll need to setup on your own machine! <br>These specs can be found on the github page <a href=https://github.com/Nordstrom/kubelogin/tree/master>here!</a> <br></p><h2>Kubelogin CLI</h2><p>Kubelogin CLI supports the following operating systems <ul><li><a href=/download/mac/kubelogin-cli-darwin.tar.gz>Click me for MacOS!</a></li><li><a href=/download/linux/kubelogin-cli-linux.tar.gz>Click me for Linux!</a></li><li><a href=/download/windows/kubelogin-cli-windows.zip>Click me for Windows!</a></li></ul></p></body></html>")
 }
 
 //creates a mux with handlers for desired endpoints
 func getMux(authClient oidcClient) *http.ServeMux {
+	fs := http.FileServer(http.Dir("/download"))
 	newMux := http.NewServeMux()
 	newMux.HandleFunc("/", defaultHandler)
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
-	newMux.HandleFunc("/download/darwin", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/x-gzip")
-		w.Header().Set("Content-Disposition", "attachment; filename=\"kubelogin-cli-darwin.tar.gz\"")
-		http.ServeFile(w, r, "/mac/kubelogin-cli-darwin.tar.gz")
-	})
-	newMux.HandleFunc("/download/linux", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/x-gzip")
-		w.Header().Set("Content-Disposition", "attachment; filename=\"kubelogin-cli-linux.tar.gz\"")
-		http.ServeFile(w, r, "/linux/kubelogin-cli-linux.tar.gz")
-	})
-	newMux.HandleFunc("/download/windows", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/zip, application/octet-stream")
-		w.Header().Set("Content-Disposition", "attachment; filename=\"kubelogin-cli-windows.zip\"")
-		http.ServeFile(w, r, "/windows/kubelogin-cli-windows.zip")
-	})
+	newMux.Handle("/download/", http.StripPrefix("/download", fs))
 	newMux.HandleFunc("/login", authClient.handleCLILogin)
 	newMux.HandleFunc("/health", healthHandler)
 	newMux.HandleFunc("/exchange", exchangeHandler)
