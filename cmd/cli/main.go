@@ -104,7 +104,7 @@ func createMux() *http.ServeMux {
 
 func parseFlags() bool {
 	flag.StringVar(&hostFlag, "host", os.Getenv("SERVER_HOSTNAME"), "host name to use when generating the auth url")
-	flag.StringVar(&userFlag, "user", "auth_user", "username used in kube config")
+	flag.StringVar(&userFlag, "user", "kubelogin_user", "username used in kube config")
 	flag.StringVar(&clusterFlag, "cluster", "kubelogin", "cluster id used in conjuction with host name")
 	flag.Parse()
 	return flag.Parsed()
