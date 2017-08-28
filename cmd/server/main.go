@@ -258,11 +258,19 @@ func defaultHandler(writer http.ResponseWriter, request *http.Request) {
 
 //creates a mux with handlers for desired endpoints
 func getMux(authClient oidcClient) *http.ServeMux {
-	fs := http.FileServer(http.Dir("/download"))
 	newMux := http.NewServeMux()
 	newMux.HandleFunc("/", defaultHandler)
+	if os.Getenv("DOWNLOAD_DIR") == "" {
+		//defaults to serve files inside of a download directory that is in root
+		fs := http.FileServer(http.Dir("/download"))
+		newMux.Handle("/download/", http.StripPrefix("/download", fs))
+	} else {
+		//standardizes on download/os/targetfile however the path to the download file can have additional folders on top
+		//i.e., foo/bar/download as the DOWNLOAD_DIR
+		fs := http.FileServer(http.Dir(os.Getenv("DOWNLOAD_DIR")))
+		newMux.Handle("/download/", http.StripPrefix("/download", fs))
+	}
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
-	newMux.Handle("/download/", http.StripPrefix("/download", fs))
 	newMux.HandleFunc("/login", authClient.handleCLILogin)
 	newMux.HandleFunc("/health", healthHandler)
 	newMux.HandleFunc("/exchange", exchangeHandler)
