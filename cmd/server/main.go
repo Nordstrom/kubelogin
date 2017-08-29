@@ -266,7 +266,7 @@ func getMux(authClient oidcClient) *http.ServeMux {
 		newMux.Handle("/download/", http.StripPrefix("/download", fs))
 	} else {
 		//standardizes on download/os/targetfile however the path to the download file can have additional folders on top
-		//i.e., foo/bar/download as the DOWNLOAD_DIR
+		//i.e., foo/bar/download as the DOWNLOAD_DIR. URL is also standardized to be www.hostname/download as the path.
 		fs := http.FileServer(http.Dir(os.Getenv("DOWNLOAD_DIR")))
 		newMux.Handle("/download/", http.StripPrefix("/download", fs))
 	}
