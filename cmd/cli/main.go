@@ -9,12 +9,13 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 var (
-	hostFlag    string
+	aliasFlag   string
 	userFlag    string
-	clusterFlag string
+	serverFlag  string
 	doneChannel chan bool
 )
 
@@ -33,12 +34,7 @@ func findFreePort() (string, error) {
 }
 
 func makeExchange(token string) error {
-	var url string
-	if clusterFlag != "kubelogin" {
-		url = fmt.Sprintf("https://kubelogin-%s.%s/exchange?token=%s", clusterFlag, hostFlag, token)
-	} else {
-		url = fmt.Sprintf("https://%s.%s/exchange?token=%s", clusterFlag, hostFlag, token)
-	}
+	url := fmt.Sprintf("https://%s/exchange?token=%s", serverFlag, token)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Printf("Unable to create request. %s", err)
@@ -57,7 +53,7 @@ func makeExchange(token string) error {
 		log.Printf("Unable to read response body. %s", err)
 		return err
 	}
-	if err := configureFile(string(jwt)); err != nil {
+	if err := configureKubectl(string(jwt)); err != nil {
 		log.Printf("Error when setting credentials: %v", err)
 		return err
 	}
@@ -73,7 +69,7 @@ func localHandler(w http.ResponseWriter, r *http.Request) {
 	doneChannel <- true
 }
 
-func configureFile(jwt string) error {
+func configureKubectl(jwt string) error {
 	configCmd := exec.Command("kubectl", "config", "set-credentials", userFlag, "--token="+jwt)
 	if err := configCmd.Run(); err != nil {
 		return err
@@ -87,12 +83,9 @@ func generateAuthURL() (string, string, error) {
 		log.Print("err, could not find an open port")
 		return "", "", err
 	}
-	var serverURL string
-	if clusterFlag != "kubelogin" {
-		serverURL = fmt.Sprintf("https://kubelogin-%s.%s/login?port=%s", clusterFlag, hostFlag, portNum)
-	} else {
-		serverURL = fmt.Sprintf("https://%s.%s/login?port=%s", clusterFlag, hostFlag, portNum)
-	}
+
+	serverURL := fmt.Sprintf("https://%s/login?port=%s", serverFlag, portNum)
+
 	return serverURL, portNum, nil
 }
 
@@ -102,26 +95,7 @@ func createMux() *http.ServeMux {
 	return newMux
 }
 
-func parseFlags() bool {
-	flag.StringVar(&hostFlag, "host", os.Getenv("SERVER_HOSTNAME"), "host name to use when generating the auth url")
-	flag.StringVar(&userFlag, "user", "kubelogin_user", "username used in kube config")
-	flag.StringVar(&clusterFlag, "cluster", "kubelogin", "cluster id used in conjuction with host name")
-	flag.Parse()
-	return flag.Parsed()
-}
-
-func main() {
-	cmdLineArgs := os.Args[1:]
-	if cmdLineArgs[0] == "login" {
-		log.Fatal("follow login path")
-	} else if cmdLineArgs[0] == "config" {
-		log.Fatal("follow config path")
-	} else {
-		log.Fatal("Correct format: kubelogin ARG FLAGS")
-	}
-	if haveParsed := parseFlags(); !haveParsed {
-		log.Fatal("Not every command line flag has been parsed")
-	}
+func beginInteraction() {
 	authURL, portNum, err := generateAuthURL()
 	if err != nil {
 		log.Fatal(err.Error())
@@ -135,4 +109,48 @@ func main() {
 	}()
 	<-doneChannel
 	log.Print("You are now logged in! Enjoy kubectl-ing!")
+}
+
+func loginFlags(login *flag.FlagSet) {
+	login.StringVar(&userFlag, "kubectl-user", "kubelogin_user", "username used in kube config")
+	login.StringVar(&serverFlag, "server", "", "cluster id used in conjuction with host name")
+}
+func configFlags(config *flag.FlagSet) {
+	config.StringVar(&aliasFlag, "alias", "default", "alias name in the config file, used for as an easy login")
+	config.StringVar(&userFlag, "kubectl_user", "kubelogin_user", "username used in kube config")
+	config.StringVar(&serverFlag, "server", "", "hostname of the server url, paths added in other functions")
+}
+func main() {
+	loginCommmand := flag.NewFlagSet("login", flag.ExitOnError)
+	loginFlags(loginCommmand)
+	configCommand := flag.NewFlagSet("config", flag.ExitOnError)
+	configFlags(configCommand)
+	if len(os.Args) < 3 {
+		log.Fatal("Must supply login or config command with flags/alias")
+	}
+	switch os.Args[1] {
+	case "login":
+		if !(strings.Contains(os.Args[2], "--") || strings.Contains(os.Args[2], "-")) {
+			log.Fatal("Assume alias case and run through flow")
+			beginInteraction()
+		} else {
+			loginCommmand.Parse(os.Args[2:])
+			if loginCommmand.Parsed() {
+				if serverFlag == "" {
+					log.Fatal("--server must be set!")
+				}
+				beginInteraction()
+			}
+		}
+	case "config":
+		configCommand.Parse(os.Args[2:])
+		if configCommand.Parsed() {
+			if serverFlag == "" {
+				log.Fatal("--server must be set!")
+			}
+			//configureRcFile
+		}
+	default:
+		log.Fatal("Correct usage: kublogin COMMAND FLAGS | valid commands are login or config")
+	}
 }
