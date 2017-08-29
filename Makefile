@@ -4,19 +4,19 @@ image_name := quay.io/nordstrom/kubelogin
 build:
 	mkdir -p build build/download/mac build/download/linux build/download/windows
 
+# Build your golang app for the target OS
+# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
 build/kubelogin : cmd/server/*.go | build
-	# Build your golang app for the target OS
-	# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
 	docker run -it \
 	  -v $(PWD):/go/src/github.com/nordstrom/kubelogin \
 	  -v $(PWD)/build:/go/bin \
 	  golang:1.7.4 \
 	    go build -v -o /go/bin/kubelogin \
-	 	  github.com/nordstrom/kubelogin/cmd/server/
+	    github.com/nordstrom/kubelogin/cmd/server/
 
 build/kubelogin-cli-% : cmd/cli/*.go | build
-	# Build your golang app for the target OS
-	# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
+# Build your golang app for the target OS
+# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
 	docker run -it \
 	  -v $(PWD):/go/src/github.com/nordstrom/kubelogin \
 	  -v $(PWD)/build:/go/bin \
