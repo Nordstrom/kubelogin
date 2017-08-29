@@ -14,7 +14,7 @@ func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 		provider := &oidc.Provider{}
 		authClient := newAuthClient("foo", "bar", "redirect", provider)
-		unitTestServer := httptest.NewServer(getMux(authClient))
+		unitTestServer := httptest.NewServer(getMux(authClient, "/downoad"))
 		Convey("The handleCLILogin function", func() {
 			Convey("should get a status code 303 for a correct redirect", func() {
 				url := unitTestServer.URL + "/login?port=8000"
@@ -66,7 +66,7 @@ func TestServerSpecs(t *testing.T) {
 		})
 		Convey("exchangeHandler", func() {
 			Convey("should return a internal server error due to Redis not being available", func() {
-				makeRedisClient()
+				makeRedisClient("testurl", "testpass")
 				exchangeURL := unitTestServer.URL + "/exchange?token=hoopla"
 				response, _ := http.Get(exchangeURL)
 				response.Body.Close()
@@ -100,7 +100,7 @@ func TestGetField(t *testing.T) {
 func TestMakeRedisClient(t *testing.T) {
 	Convey("makeRedisClient", t, func() {
 		Convey("should fail since no Redis address environment variable was set", func() {
-			err := makeRedisClient()
+			err := makeRedisClient("testurl", "testpass")
 			So(err, ShouldNotEqual, nil)
 		})
 	})
@@ -154,7 +154,7 @@ func TestHealthHandler(t *testing.T) {
 	Convey("healthHandler", t, func() {
 		provider := &oidc.Provider{}
 		authClient := newAuthClient("foo", "bar", "redirect", provider)
-		unitTestServer := httptest.NewServer(getMux(authClient))
+		unitTestServer := httptest.NewServer(getMux(authClient, "/download"))
 		Convey("Should write back to the response writer a statusOK", func() {
 			resp, _ := http.Get(unitTestServer.URL + "/health")
 			So(resp.StatusCode, ShouldEqual, 200)

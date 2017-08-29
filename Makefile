@@ -58,11 +58,6 @@ test_app:
 build/Dockerfile: Dockerfile
 	cp Dockerfile build/Dockerfile
 
-tarzip:
-	cp build/kubelogin-cli-darwin kubelogin-cli-darwin
-	tar -czf kubelogin-cli-darwin.tar.gz kubelogin-cli-darwin
-	mv kubelogin-cli-darwin.tar.gz build/
-
 .PHONY: build_image push_image deploy teardown clean
 build_image: build/download/linux/kubelogin-cli-linux.tar.gz build/download/windows/kubelogin-cli-windows.zip build/download/mac/kubelogin-cli-darwin.tar.gz build/kubelogin build/Dockerfile | build
 	docker build -t $(image_name):$(image_tag) .

@@ -228,15 +228,6 @@ func generateSendBackURL(jwt string, port string) (string, error) {
 
 // sets up the struct for later use
 func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider) oidcClient {
-	if clientID == "" {
-		log.Fatal("Client ID not set!")
-	}
-	if clientSecret == "" {
-		log.Fatal("Client Secret not set!")
-	}
-	if redirectURI == "" {
-		log.Fatal("Redirect URI not set!")
-	}
 	return oidcClient{
 		clientID:     clientID,
 		clientSecret: clientSecret,
@@ -257,19 +248,11 @@ func defaultHandler(writer http.ResponseWriter, request *http.Request) {
 }
 
 //creates a mux with handlers for desired endpoints
-func getMux(authClient oidcClient) *http.ServeMux {
+func getMux(authClient oidcClient, downloadDir string) *http.ServeMux {
 	newMux := http.NewServeMux()
+	fs := http.FileServer(http.Dir(downloadDir))
 	newMux.HandleFunc("/", defaultHandler)
-	if os.Getenv("DOWNLOAD_DIR") == "" {
-		//defaults to serve files inside of a download directory that is in root
-		fs := http.FileServer(http.Dir("/download"))
-		newMux.Handle("/download/", http.StripPrefix("/download", fs))
-	} else {
-		//standardizes on download/os/targetfile however the path to the download file can have additional folders on top
-		//i.e., foo/bar/download as the DOWNLOAD_DIR. URL is also standardized to be www.hostname/download as the path.
-		fs := http.FileServer(http.Dir(os.Getenv("DOWNLOAD_DIR")))
-		newMux.Handle("/download/", http.StripPrefix("/download", fs))
-	}
+	newMux.Handle("/download/", http.StripPrefix("/download", fs))
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
 	newMux.HandleFunc("/login", authClient.handleCLILogin)
 	newMux.HandleFunc("/health", healthHandler)
@@ -278,10 +261,10 @@ func getMux(authClient oidcClient) *http.ServeMux {
 	return newMux
 }
 
-func makeRedisClient() error {
+func makeRedisClient(redisURL, redisPass string) error {
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_URL"),
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr:     redisURL,
+		Password: redisPass,
 		DB:       0,
 	})
 	ping, err := redisClient.Ping().Result()
@@ -304,7 +287,7 @@ func init() {
 // creates our Redis client for communication
 // creates an auth client based on the environment variables and provider
 func main() {
-	if err := makeRedisClient(); err != nil {
+	if err := makeRedisClient(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD")); err != nil {
 		log.Fatalf("Error communicating with Redis: %v", err)
 	}
 	ctx := oidc.ClientContext(context.Background(), http.DefaultClient)
@@ -313,8 +296,23 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
 	listenPort := ":" + os.Getenv("LISTEN_PORT")
+	if os.Getenv("CLIENT_ID") == "" {
+		log.Fatal("CLIENT_ID not set!")
+	}
+	if os.Getenv("CLIENT_SECRET") == "" {
+		log.Fatal("CLIENT_SECRET not set!")
+	}
+	if os.Getenv("REDIRECT_URL") == "" {
+		log.Fatal("REDIRECT_URL not set!")
+	}
 	authClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider)
-	if err := http.ListenAndServe(listenPort, getMux(authClient)); err != nil {
+	var newMux *http.ServeMux
+	if os.Getenv("DOWNLOAD_DIR") == "" {
+		newMux = getMux(authClient, "/download")
+	} else {
+		newMux = getMux(authClient, os.Getenv("DOWNLOAD_DIR"))
+	}
+	if err := http.ListenAndServe(listenPort, newMux); err != nil {
 		log.Fatalf("Failed to listen on port: %s | Error: %v", listenPort, err)
 	}
 }
