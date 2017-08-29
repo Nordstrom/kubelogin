@@ -111,6 +111,14 @@ func parseFlags() bool {
 }
 
 func main() {
+	cmdLineArgs := os.Args[1:]
+	if cmdLineArgs[0] == "login" {
+		log.Fatal("follow login path")
+	} else if cmdLineArgs[0] == "config" {
+		log.Fatal("follow config path")
+	} else {
+		log.Fatal("Correct format: kubelogin ARG FLAGS")
+	}
 	if haveParsed := parseFlags(); !haveParsed {
 		log.Fatal("Not every command line flag has been parsed")
 	}
