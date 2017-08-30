@@ -9,7 +9,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"strings"
+
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -18,6 +21,15 @@ var (
 	serverFlag  string
 	doneChannel chan bool
 )
+
+//Config file format for extracting and writing the config file
+type Config struct {
+	Servers []struct {
+		Alias       string `yaml:"alias"`
+		BaseURL     string `yaml:"base-url"`
+		KubectlUser string `yaml:"kubectl-user"`
+	} `yaml:"servers"`
+}
 
 func findFreePort() (string, error) {
 	server, err := net.Listen("tcp", ":0")
@@ -111,27 +123,43 @@ func beginInteraction() {
 	log.Print("You are now logged in! Enjoy kubectl-ing!")
 }
 
-func loginFlags(login *flag.FlagSet) {
-	login.StringVar(&userFlag, "kubectl-user", "kubelogin_user", "username used in kube config")
-	login.StringVar(&serverFlag, "server", "", "cluster id used in conjuction with host name")
+func setFlags(command *flag.FlagSet, loginCmd bool) {
+	if !loginCmd {
+		command.StringVar(&aliasFlag, "alias", "default", "alias name in the config file, used for an easy login")
+	}
+	command.StringVar(&userFlag, "kubectl_user", "kubelogin_user", "username used in kube config")
+	command.StringVar(&serverFlag, "server", "", "hostname of the server url, correct paths added in other functions")
 }
-func configFlags(config *flag.FlagSet) {
-	config.StringVar(&aliasFlag, "alias", "default", "alias name in the config file, used for as an easy login")
-	config.StringVar(&userFlag, "kubectl_user", "kubelogin_user", "username used in kube config")
-	config.StringVar(&serverFlag, "server", "", "hostname of the server url, paths added in other functions")
+func getConfigSettings() {
+	user, err := user.Current()
+	if err != nil {
+		log.Fatalf("Could not determine current user of this system. Err: %v", err)
+	}
+	filenameWithPath := fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+	yamlFile, err := ioutil.ReadFile(filenameWithPath)
+	if err != nil {
+		log.Fatalf("Couldn't read config file! Err: %v", err)
+	}
+	var config Config
+	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
+		log.Fatalf("Error unmarshaling yaml file! Err: %v", err)
+	}
+	log.Fatalf("Values: %#v\n", config.Servers)
 }
+
 func main() {
 	loginCommmand := flag.NewFlagSet("login", flag.ExitOnError)
-	loginFlags(loginCommmand)
+	setFlags(loginCommmand, true)
 	configCommand := flag.NewFlagSet("config", flag.ExitOnError)
-	configFlags(configCommand)
+	setFlags(configCommand, false)
 	if len(os.Args) < 3 {
 		log.Fatal("Must supply login or config command with flags/alias")
 	}
 	switch os.Args[1] {
 	case "login":
 		if !(strings.Contains(os.Args[2], "--") || strings.Contains(os.Args[2], "-")) {
-			log.Fatal("Assume alias case and run through flow")
+			//use alias to extract needed information
+			getConfigSettings()
 			beginInteraction()
 		} else {
 			loginCommmand.Parse(os.Args[2:])
