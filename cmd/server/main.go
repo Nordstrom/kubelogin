@@ -287,6 +287,12 @@ func init() {
 // creates our Redis client for communication
 // creates an auth client based on the environment variables and provider
 func main() {
+	if os.Getenv("REDIS_URL") == "" {
+		log.Fatal("REDIS_URL not set! Is redis deployed in the same namespace?")
+	}
+	if os.Getenv("REDIS_PASSWORD") == "" {
+		log.Fatal("REDIS_PASSWORD not set! Is redis deployed in the same namespace?")
+	}
 	if err := makeRedisClient(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD")); err != nil {
 		log.Fatalf("Error communicating with Redis: %v", err)
 	}
@@ -306,13 +312,15 @@ func main() {
 		log.Fatal("REDIRECT_URL not set!")
 	}
 	authClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider)
-	var newMux *http.ServeMux
+	var mux *http.ServeMux
+	var downloadDir string
 	if os.Getenv("DOWNLOAD_DIR") == "" {
-		newMux = getMux(authClient, "/download")
+		downloadDir = "/download"
 	} else {
-		newMux = getMux(authClient, os.Getenv("DOWNLOAD_DIR"))
+		downloadDir = os.Getenv("DOWNLOAD_DIR")
 	}
-	if err := http.ListenAndServe(listenPort, newMux); err != nil {
+	mux = getMux(authClient, downloadDir)
+	if err := http.ListenAndServe(listenPort, mux); err != nil {
 		log.Fatalf("Failed to listen on port: %s | Error: %v", listenPort, err)
 	}
 }
