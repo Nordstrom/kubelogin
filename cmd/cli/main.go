@@ -46,7 +46,7 @@ func findFreePort() (string, error) {
 }
 
 func makeExchange(token string) error {
-	url := fmt.Sprintf("https://%s/exchange?token=%s", serverFlag, token)
+	url := fmt.Sprintf("%s/exchange?token=%s", serverFlag, token)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Printf("Unable to create request. %s", err)
@@ -96,9 +96,9 @@ func generateAuthURL() (string, string, error) {
 		return "", "", err
 	}
 
-	serverURL := fmt.Sprintf("https://%s/login?port=%s", serverFlag, portNum)
+	loginURL := fmt.Sprintf("%s/login?port=%s", serverFlag, portNum)
 
-	return serverURL, portNum, nil
+	return loginURL, portNum, nil
 }
 
 func createMux() *http.ServeMux {
@@ -108,13 +108,13 @@ func createMux() *http.ServeMux {
 }
 
 func beginInteraction() {
-	authURL, portNum, err := generateAuthURL()
+	loginURL, portNum, err := generateAuthURL()
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	doneChannel = make(chan bool)
 	go func() {
-		log.Print("\nFollow this url if you want to live!: ", authURL)
+		log.Print("\nFollow this url if you want to live!: ", loginURL)
 		if err := http.ListenAndServe(":"+portNum, createMux()); err != nil {
 			log.Fatalf("Error listening on port: %s. Error: %v", portNum, err)
 		}
@@ -130,7 +130,7 @@ func setFlags(command *flag.FlagSet, loginCmd bool) {
 	command.StringVar(&userFlag, "kubectl_user", "kubelogin_user", "username used in kube config")
 	command.StringVar(&serverFlag, "server", "", "hostname of the server url, correct paths added in other functions")
 }
-func getConfigSettings() {
+func getConfigSettings(alias string) {
 	user, err := user.Current()
 	if err != nil {
 		log.Fatalf("Could not determine current user of this system. Err: %v", err)
@@ -144,7 +144,14 @@ func getConfigSettings() {
 	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
 		log.Fatalf("Error unmarshaling yaml file! Err: %v", err)
 	}
-	log.Fatalf("Values: %#v\n", config.Servers)
+	for _, servers := range config.Servers {
+		if alias == servers.Alias {
+			userFlag = servers.KubectlUser
+			serverFlag = servers.BaseURL
+			return
+		}
+	}
+	log.Fatal("Could not find specified alias, check spelling or use config command to create an entry")
 }
 
 func main() {
@@ -159,7 +166,7 @@ func main() {
 	case "login":
 		if !(strings.Contains(os.Args[2], "--") || strings.Contains(os.Args[2], "-")) {
 			//use alias to extract needed information
-			getConfigSettings()
+			getConfigSettings(os.Args[2])
 			beginInteraction()
 		} else {
 			loginCommmand.Parse(os.Args[2:])
