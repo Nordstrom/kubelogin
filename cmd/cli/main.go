@@ -188,6 +188,24 @@ func createConfig(config Config, aliasConfig AliasConfig, filenameWithPath strin
 	log.Print("File configured")
 }
 
+func newAliasConfig(config Config, filenameWithPath string) {
+	var newAliasConfig AliasConfig
+	newAliasConfig.BaseURL = serverFlag
+	newAliasConfig.Alias = aliasFlag
+	newAliasConfig.KubectlUser = userFlag
+	config.Aliases = append(config.Aliases, &newAliasConfig)
+	marshaledYaml, err := yaml.Marshal(config)
+	if err != nil {
+		log.Fatalf("Error marshaling new alias: %v", err)
+	}
+	if err := ioutil.WriteFile(filenameWithPath, marshaledYaml, 0600); err != nil {
+		log.Fatalf("Error writing to kubeloginrc file: %v", err)
+	}
+	log.Printf(string(marshaledYaml))
+	log.Print("File configured")
+	os.Exit(0)
+}
+
 func configureFile() {
 	var config Config
 	var aliasConfig AliasConfig
@@ -206,21 +224,7 @@ func configureFile() {
 	}
 	index, ok := aliasSearch(aliasFlag, config)
 	if !ok {
-		var newAliasConfig AliasConfig
-		newAliasConfig.BaseURL = serverFlag
-		newAliasConfig.Alias = aliasFlag
-		newAliasConfig.KubectlUser = userFlag
-		config.Aliases = append(config.Aliases, &newAliasConfig)
-		marshaledYaml, err := yaml.Marshal(config)
-		if err != nil {
-			log.Fatalf("Error marshaling new alias: %v", err)
-		}
-		if err := ioutil.WriteFile(filenameWithPath, marshaledYaml, 0600); err != nil {
-			log.Fatalf("Error writing to kubeloginrc file: %v", err)
-		}
-		log.Printf(string(marshaledYaml))
-		log.Print("File configured")
-		os.Exit(0)
+		newAliasConfig(config, filenameWithPath)
 	}
 	config.Aliases[index].KubectlUser = userFlag
 	config.Aliases[index].BaseURL = serverFlag
