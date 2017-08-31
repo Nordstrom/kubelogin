@@ -37,6 +37,7 @@ build/download/linux/kubelogin-cli-linux.tar.gz: build/download/linux/kubelogin
 build/download/mac/kubelogin-cli-darwin.tar.gz build/download/linux/kubelogin-cli-linux.tar.gz:
 	tar -C $(@D) -czf $@ kubelogin
 
+<<<<<<< HEAD
 build/download/windows/kubelogin-cli-windows.zip: build/download/windows/kubelogin.exe
 	cd build/download/windows && zip -r -X kubelogin-cli-windows.zip kubelogin.exe
 
@@ -44,6 +45,20 @@ build/download/windows/kubelogin-cli-windows.zip: build/download/windows/kubelog
 # Build golang app for local OS
 kubelogin: cmd/server/*.go
 =======
+=======
+build/kubelogin-cli-% : cmd/cli/*.go | build
+	# Build your golang app for the target OS
+	# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
+	docker run -it \
+	  -v $(PWD):/go/src/github.com/nordstrom/kubelogin \
+	  -v $(PWD)/build:/go/bin \
+	  -e GOARCH=amd64 \
+	  -e GOOS=$* \
+	  golang:1.7.4 \
+		go build -v -o /go/bin/kubelogin-cli-$* \
+		  github.com/nordstrom/kubelogin/cmd/cli/ \
+
+>>>>>>> 45ecf6518ac6e0a31802dfa184af367a9e199b84
 moveMac:
 	cd build/ && mv kubelogin-cli-darwin download/mac/kubelogin
 
@@ -85,6 +100,7 @@ build/Dockerfile: Dockerfile | build
 .PHONY: build_image push_image deploy teardown clean
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 build_image: build/download/linux/kubelogin-cli-linux.tar.gz build/download/windows/kubelogin-cli-windows.zip build/download/mac/kubelogin-cli-darwin.tar.gz build/kubelogin build/Dockerfile
 	docker build -t $(image_name):$(image_tag) build
 =======
@@ -92,6 +108,9 @@ build_image: build/linux/kubelogin-cli-linux.tar.gz build/windows/kubelogin-cli-
 =======
 build_image: build/download/linux/kubelogin-cli-linux.tar.gz build/download/windows/kubelogin-cli-windows.zip build/download/mac/kubelogin-cli-darwin.tar.gz build/kubelogin build/Dockerfile | build
 >>>>>>> updated server code to use FileServer, Makefile and Dockerfile now have binary structured in download folder
+=======
+build_image: build/download/linux/kubelogin-cli-linux.tar.gz build/download/windows/kubelogin-cli-windows.zip build/download/mac/kubelogin-cli-darwin.tar.gz build/kubelogin build/Dockerfile | build
+>>>>>>> 45ecf6518ac6e0a31802dfa184af367a9e199b84
 	docker build -t $(image_name):$(image_tag) .
 >>>>>>> Can now download CLI binary for mac/windows/linux
 
