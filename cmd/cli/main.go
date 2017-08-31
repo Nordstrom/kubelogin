@@ -25,13 +25,14 @@ var (
 	filenameWithPath string
 )
 
-//Config file format for extracting and writing the config file
+//AliasConfig contains the structure of what's in the config file
 type AliasConfig struct {
 	Alias       string `yaml:"alias"`
 	BaseURL     string `yaml:"base-url"`
 	KubectlUser string `yaml:"kubectl-user"`
 }
 
+//Config struct to wrap the Aliases with their specific values inside of
 type Config struct {
 	Aliases []*AliasConfig `yaml:"aliases"`
 }
