@@ -242,9 +242,17 @@ func healthHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
 }
 
-// sets up a new mux with the necessary handlers for the endpoints that are required
-func getMux(authClient oidcClient) *http.ServeMux {
+func defaultHandler(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprint(writer, "<!doctype html><html><head><title>Welcome to Kubelogin</title></head><body><h1>Kubelogin</h1><p>For kubelogin to work appropriately, there are a few things you'll need to setup on your own machine! <br>These specs can be found on the github page <a href=https://github.com/Nordstrom/kubelogin/tree/master>here!</a> <br></p><h2>Kubelogin CLI</h2><p>Kubelogin CLI supports the following operating systems <ul><li><a href=/download/mac/kubelogin-cli-darwin.tar.gz>Click me for MacOS!</a></li><li><a href=/download/linux/kubelogin-cli-linux.tar.gz>Click me for Linux!</a></li><li><a href=/download/windows/kubelogin-cli-windows.zip>Click me for Windows!</a></li></ul></p></body></html>")
+}
+
+//creates a mux with handlers for desired endpoints
+func getMux(authClient oidcClient, downloadDir string) *http.ServeMux {
 	newMux := http.NewServeMux()
+	fs := http.FileServer(http.Dir(downloadDir))
+	newMux.HandleFunc("/", defaultHandler)
+	newMux.Handle("/download/", http.StripPrefix("/download", fs))
 	newMux.HandleFunc("/callback", authClient.callbackHandler)
 	newMux.HandleFunc("/login", authClient.handleCLILogin)
 	newMux.HandleFunc("/health", healthHandler)
@@ -253,10 +261,10 @@ func getMux(authClient oidcClient) *http.ServeMux {
 	return newMux
 }
 
-func makeRedisClient() error {
+func makeRedisClient(redisURL, redisPass string) error {
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_URL"),
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr:     redisURL,
+		Password: redisPass,
 		DB:       0,
 	})
 	ping, err := redisClient.Ping().Result()
@@ -279,7 +287,13 @@ func init() {
 // creates our Redis client for communication
 // creates an auth client based on the environment variables and provider
 func main() {
-	if err := makeRedisClient(); err != nil {
+	if os.Getenv("REDIS_URL") == "" {
+		log.Fatal("REDIS_URL not set! Is redis deployed in the same namespace?")
+	}
+	if os.Getenv("REDIS_PASSWORD") == "" {
+		log.Fatal("REDIS_PASSWORD not set! Is redis deployed in the same namespace?")
+	}
+	if err := makeRedisClient(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD")); err != nil {
 		log.Fatalf("Error communicating with Redis: %v", err)
 	}
 	ctx := oidc.ClientContext(context.Background(), http.DefaultClient)
@@ -288,8 +302,22 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
 	}
 	listenPort := ":" + os.Getenv("LISTEN_PORT")
+	if os.Getenv("CLIENT_ID") == "" {
+		log.Fatal("CLIENT_ID not set!")
+	}
+	if os.Getenv("CLIENT_SECRET") == "" {
+		log.Fatal("CLIENT_SECRET not set!")
+	}
+	if os.Getenv("REDIRECT_URL") == "" {
+		log.Fatal("REDIRECT_URL not set!")
+	}
 	authClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider)
-	if err := http.ListenAndServe(listenPort, getMux(authClient)); err != nil {
-		log.Fatal(err)
+	downloadDir := os.Getenv("DOWNLOAD_DIR")
+	if downloadDir == "" {
+		downloadDir = "/download"
+	}
+	mux := getMux(authClient, downloadDir)
+	if err := http.ListenAndServe(listenPort, mux); err != nil {
+		log.Fatalf("Failed to listen on port: %s | Error: %v", listenPort, err)
 	}
 }

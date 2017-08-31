@@ -10,20 +10,11 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func incorrectURL(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "404 Page Not Found", http.StatusNotFound)
-}
-
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 		provider := &oidc.Provider{}
 		authClient := newAuthClient("foo", "bar", "redirect", provider)
-		unitTestServer := httptest.NewServer(getMux(authClient))
-		Convey("The incorrectURL handler should return a 404 if a user doesn't specify a path", func() {
-			response, _ := http.Get(unitTestServer.URL)
-			response.Body.Close()
-			So(response.StatusCode, ShouldEqual, 404)
-		})
+		unitTestServer := httptest.NewServer(getMux(authClient, "/downoad"))
 		Convey("The handleCLILogin function", func() {
 			Convey("should get a status code 303 for a correct redirect", func() {
 				url := unitTestServer.URL + "/login?port=8000"
@@ -61,9 +52,21 @@ func TestServerSpecs(t *testing.T) {
 				So(response.StatusCode, ShouldEqual, http.StatusInternalServerError)
 			})
 		})
+		Convey("defaultHandler", func() {
+			Convey("should have basic html written on the page i.e., body is not nil", func() {
+				request, _ := http.NewRequest("GET", unitTestServer.URL, nil)
+				response, _ := authClient.client.Do(request)
+				response.Body.Close()
+				So(response.Body, ShouldNotEqual, nil)
+			})
+			Convey("should return a 200 status code upon a successful connection", func() {
+				response, _ := http.Get(unitTestServer.URL)
+				So(response.StatusCode, ShouldEqual, 200)
+			})
+		})
 		Convey("exchangeHandler", func() {
 			Convey("should return a internal server error due to Redis not being available", func() {
-				makeRedisClient()
+				makeRedisClient("testurl", "testpass")
 				exchangeURL := unitTestServer.URL + "/exchange?token=hoopla"
 				response, _ := http.Get(exchangeURL)
 				response.Body.Close()
@@ -97,7 +100,7 @@ func TestGetField(t *testing.T) {
 func TestMakeRedisClient(t *testing.T) {
 	Convey("makeRedisClient", t, func() {
 		Convey("should fail since no Redis address environment variable was set", func() {
-			err := makeRedisClient()
+			err := makeRedisClient("testurl", "testpass")
 			So(err, ShouldNotEqual, nil)
 		})
 	})
@@ -151,7 +154,7 @@ func TestHealthHandler(t *testing.T) {
 	Convey("healthHandler", t, func() {
 		provider := &oidc.Provider{}
 		authClient := newAuthClient("foo", "bar", "redirect", provider)
-		unitTestServer := httptest.NewServer(getMux(authClient))
+		unitTestServer := httptest.NewServer(getMux(authClient, "/download"))
 		Convey("Should write back to the response writer a statusOK", func() {
 			resp, _ := http.Get(unitTestServer.URL + "/health")
 			So(resp.StatusCode, ShouldEqual, 200)

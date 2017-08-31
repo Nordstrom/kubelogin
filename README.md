@@ -9,7 +9,7 @@ Repo for the kubelogin Server and CLI
 ## Usage 
 The intended usage of this CLI is to communicate with the kubelogin server to set the token field of the kubectl config file. The kubernetes API server will use this token for OIDC authentication.
 
-The url to the kubelogin server is formatted as: https://clustername.server_hostname/login?port=
+The url to the kubelogin server is formatted as: https://kubelogin-clustername.server_hostname/login?port= if the cluster flag is set, otherwise the format will be https://kubelogin.server_hostname/login?port=
 
 
 ## Pre-Deploy Action & Configuration
@@ -19,7 +19,7 @@ The url to the kubelogin server is formatted as: https://clustername.server_host
 
 ## Deploy
 1. --user is an optional flag that can be set which will specify what username you'd like to be set in the kube config file. This defaults to auth_user.
-2. --cluster is an optional flag to specify an exact clustername for the path to the server. This is set to current if no cluster is specified.
+2. --cluster is an optional flag to specify an exact clustername for the path to the server. This is set to kubelogin if no cluster is specified.
 3. --host is an optional flag to specify the rest of the URL to the server after clustername. This looks for an environment variable if not set.
 
 
@@ -54,6 +54,7 @@ The following need to be set up in the Kubernetes environment
 | **REDIRECT_URL** | this is the URL that the OIDC provider will use to callback to this server |
 | **REDIS_URL** | upon deploying Redis in the same namespace as this server, this will be set |
 | **REDIS_PASSWORD** | same as Redis URL |
+| **REDIS_TTL** | this sets the time to live for each entry into Redis. Defaults to 10 seconds if not overridden | 
 
 ## Deploy
 - Deployment should be handled through helm charts. A Makefile will help with setting the environment variables that are not secrets or Redis based
