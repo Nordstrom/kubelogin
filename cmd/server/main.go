@@ -312,14 +312,11 @@ func main() {
 		log.Fatal("REDIRECT_URL not set!")
 	}
 	authClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider)
-	var mux *http.ServeMux
-	var downloadDir string
-	if os.Getenv("DOWNLOAD_DIR") == "" {
+	downloadDir := os.Getenv("DOWNLOAD_DIR")
+	if downloadDir == "" {
 		downloadDir = "/download"
-	} else {
-		downloadDir = os.Getenv("DOWNLOAD_DIR")
 	}
-	mux = getMux(authClient, downloadDir)
+	mux := getMux(authClient, downloadDir)
 	if err := http.ListenAndServe(listenPort, mux); err != nil {
 		log.Fatalf("Failed to listen on port: %s | Error: %v", listenPort, err)
 	}
