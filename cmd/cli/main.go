@@ -18,10 +18,11 @@ import (
 )
 
 var (
-	aliasFlag   string
-	userFlag    string
-	serverFlag  string
-	doneChannel chan bool
+	aliasFlag        string
+	userFlag         string
+	serverFlag       string
+	doneChannel      chan bool
+	filenameWithPath string
 )
 
 //Config file format for extracting and writing the config file
@@ -135,11 +136,6 @@ func setFlags(command *flag.FlagSet, loginCmd bool) {
 	command.StringVar(&serverFlag, "server", "", "hostname of the server url, correct paths added in other functions")
 }
 func getConfigSettings(alias string) error {
-	user, err := user.Current()
-	if err != nil {
-		return errors.Wrap(err, "Could not determine current user of this system.")
-	}
-	filenameWithPath := fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
 	yamlFile, err := ioutil.ReadFile(filenameWithPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to read config file for login use")
@@ -167,7 +163,7 @@ func (config *Config) aliasSearch(alias string) (int, bool) {
 	return -1, false
 }
 
-func (config *Config) createConfig(aliasConfig AliasConfig, filenameWithPath string) error {
+func (config *Config) createConfig(aliasConfig AliasConfig) error {
 	log.Print("Couldn't find config file in root directory. Creating config file...")
 	createCmd := exec.Command("touch", filenameWithPath)
 	if err := createCmd.Run(); err != nil {
@@ -191,7 +187,7 @@ func (config *Config) createConfig(aliasConfig AliasConfig, filenameWithPath str
 	return nil
 }
 
-func (config *Config) newAliasConfig(filenameWithPath string) error {
+func (config *Config) newAliasConfig() error {
 	var newAliasConfig AliasConfig
 	newAliasConfig.BaseURL = serverFlag
 	newAliasConfig.Alias = aliasFlag
@@ -209,7 +205,7 @@ func (config *Config) newAliasConfig(filenameWithPath string) error {
 	return nil
 }
 
-func (config *Config) updateAlias(index int, filenameWithPath string) error {
+func (config *Config) updateAlias(index int) error {
 	config.Aliases[index].KubectlUser = userFlag
 	config.Aliases[index].BaseURL = serverFlag
 	marshaledYaml, err := yaml.Marshal(config)
@@ -227,14 +223,9 @@ func (config *Config) updateAlias(index int, filenameWithPath string) error {
 func configureFile() error {
 	var config Config
 	var aliasConfig AliasConfig
-	user, err := user.Current()
-	if err != nil {
-		log.Fatalf("Could not determine current user of this system. Err: %v", err)
-	}
-	filenameWithPath := fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
 	yamlFile, err := ioutil.ReadFile(filenameWithPath)
 	if err != nil {
-		if err := config.createConfig(aliasConfig, filenameWithPath); err != nil {
+		if err := config.createConfig(aliasConfig); err != nil {
 			return err
 		}
 		return nil
@@ -244,12 +235,12 @@ func configureFile() error {
 	}
 	index, ok := config.aliasSearch(aliasFlag)
 	if !ok {
-		if err := config.newAliasConfig(filenameWithPath); err != nil {
+		if err := config.newAliasConfig(); err != nil {
 			return err
 		}
 		return nil
 	}
-	if err := config.updateAlias(index, filenameWithPath); err != nil {
+	if err := config.updateAlias(index); err != nil {
 		return err
 	}
 	return nil
@@ -260,6 +251,11 @@ func main() {
 	setFlags(loginCommmand, true)
 	configCommand := flag.NewFlagSet("config", flag.ExitOnError)
 	setFlags(configCommand, false)
+	user, err := user.Current()
+	if err != nil {
+		log.Fatalf("Could not determine current user of this system. Err: %v", err)
+	}
+	filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
 	if len(os.Args) < 3 {
 		log.Fatal("Must supply login or config command with flags/alias")
 	}
