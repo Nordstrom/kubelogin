@@ -40,23 +40,23 @@ build/download/mac/kubelogin-cli-darwin.tar.gz build/download/linux/kubelogin-cl
 build/download/windows/kubelogin-cli-windows.zip: build/download/windows/kubelogin.exe
 	cd build/download/windows && zip -r -X kubelogin-cli-windows.zip kubelogin.exe
 
-kubelogin: cmd/server/*.go | build
-	# Build golang app for local OS
+# Build golang app for local OS
+kubelogin: cmd/server/*.go
 	go build -o kubelogin
 
-kubeloginCLI: cmd/cli/*.go | build
+kubeloginCLI: cmd/cli/*.go
 	go build -o kubeloginCLI
 
 .PHONY: test_app
 test_app:
 	go test ./...
 
-build/Dockerfile: Dockerfile
+build/Dockerfile: Dockerfile | build
 	cp Dockerfile build/Dockerfile
 
 .PHONY: build_image push_image deploy teardown clean
-build_image: build/download/linux/kubelogin-cli-linux.tar.gz build/download/windows/kubelogin-cli-windows.zip build/download/mac/kubelogin-cli-darwin.tar.gz build/kubelogin build/Dockerfile | build
-	docker build -t $(image_name):$(image_tag) .
+build_image: build/download/linux/kubelogin-cli-linux.tar.gz build/download/windows/kubelogin-cli-windows.zip build/download/mac/kubelogin-cli-darwin.tar.gz build/kubelogin build/Dockerfile
+	docker build -t $(image_name):$(image_tag) build
 
 push_image: build_image
 	docker push $(image_name):$(image_tag)
