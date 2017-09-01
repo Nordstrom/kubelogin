@@ -253,7 +253,7 @@ func healthHandler(writer http.ResponseWriter, request *http.Request) {
 
 func defaultHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(writer, "<!doctype html><html><head><title>Welcome to Kubelogin</title></head><body><h1>Kubelogin</h1><p>For kubelogin to work appropriately, there are a few things you'll need to setup on your own machine! <br>These specs can be found on the github page <a href=https://github.com/Nordstrom/kubelogin/tree/master>here!</a> <br></p><h2>Kubelogin CLI</h2><p>Kubelogin CLI supports the following operating systems <ul><li><a href=/download/mac/kubelogin-cli-darwin.tar.gz>Click me for MacOS!</a></li><li><a href=/download/linux/kubelogin-cli-linux.tar.gz>Click me for Linux!</a></li><li><a href=/download/windows/kubelogin-cli-windows.zip>Click me for Windows!</a></li></ul></p></body></html>")
+	fmt.Fprint(writer, "<!doctype html><html><head><title>Welcome to Kubelogin</title></head><body><h1>Kubelogin</h1><p>For kubelogin to work appropriately, there are a few things you'll need to setup on your own machine/environment! <br>These specs can be found on the github page <a href=https://github.com/Nordstrom/kubelogin/tree/master>here!</a> <br></p><h2>Kubelogin CLI</h2><p>The Kubelogin CLI supports the following operating systems <ul><li><a href=/download/mac/kubelogin-cli-darwin.tar.gz>Click me for MacOS!</a></li><li><a href=/download/linux/kubelogin-cli-linux.tar.gz>Click me for Linux!</a></li><li><a href=/download/windows/kubelogin-cli-windows.zip>Click me for Windows!</a></li></ul></p></body></html>")
 }
 
 //creates a mux with handlers for desired endpoints
