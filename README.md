@@ -16,9 +16,9 @@ How to use these verbs:
 
 | Verb | Flags | Description | Example |
 | :--- | :--- | :--- | :--- |
-| `kubelogin config` | alias, server, kubectl_user | If no alias flag is set, the alias is set as default. If kubectl_user isn't set, it defaults to kubelogin_user. Server **MUST** be set. If there is no existing config file, this verb will create one for you in your root directory and put the initial values in the file for you. If you give an alias that already exists, it will update that aliases information. If you give a new alias, it will add that to the existing list of aliases | `kubelogin config --alias=foo --server=bar --kubectl_user=foobar |
-| `kubelogin login ALIAS` | no flags | this command will take the alias given and search for it in the config file. If no value is found, it will error out and ask you to check spelling or create a config file. | `kubelogin login foo` |
-| `kubelogin login` | server, kubectl_user | if you do not wish to create a config file and only intend on logging in just once, you can set the server directly using the --server flag which **MUST** be set; kubectl_user will still default to kubelogin_user if not supplied. The alias flag is not accepted here | `kubelogin login --server=foo --kubectl_user=bar ` |
+| `config` | alias, server, kubectl_user | If no alias flag is set, the alias is set as default. If kubectl_user isn't set, it defaults to kubelogin_user. Server **MUST** be set. If there is no existing config file, this verb will create one for you in your root directory and put the initial values in the file for you. If you give an alias that already exists, it will update that aliases information. If you give a new alias, it will add that to the existing list of aliases | `kubelogin config --alias=foo --server=bar --kubectl_user=foobar` |
+| `login ALIAS` | no flags | this command will take the alias given and search for it in the config file. If no value is found, it will error out and ask you to check spelling or create a config file. | `kubelogin login foo` |
+| `login` | server, kubectl_user | if you do not wish to create a config file and only intend on logging in just once, you can set the server directly using the --server flag which **MUST** be set; kubectl_user will still default to kubelogin_user if not supplied. The alias flag is not accepted here | `kubelogin login --server=foo --kubectl_user=bar ` |
 
 ## Pre-Deploy Action & Configuration
 1. Download binary file and move it into your bin directory
