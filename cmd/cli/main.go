@@ -148,7 +148,7 @@ func getConfigSettings(alias string) error {
 
 	index, ok := config.aliasSearch(alias)
 	if !ok {
-		return errors.Wrap(err, "Could not find specified alias, check spelling or use config command to create an entry")
+		return errors.New("Could not find specified alias, check spelling or use the config verb to create an alias")
 	}
 	userFlag = config.Aliases[index].KubectlUser
 	serverFlag = config.Aliases[index].BaseURL

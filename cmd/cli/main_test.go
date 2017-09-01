@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"os/user"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -49,12 +51,112 @@ func TestCreateMux(t *testing.T) {
 	})
 }
 
+func TestConfigureKubectl(t *testing.T) {
+	Convey("configureKubectl", t, func() {
+		userFlag = "auth_user"
+		Convey("should return nil upon setting the token correctly", func() {
+			err := configureKubectl("hoopla")
+			So(err, ShouldEqual, nil)
+		})
+		Convey("should return an error when running the command with no user defined", func() {
+			userFlag = ""
+			err := configureKubectl("hoopla")
+			So(err, ShouldNotEqual, nil)
+		})
+	})
+}
+
 func TestConfigureFile(t *testing.T) {
 	Convey("configureFile", t, func() {
-		Convey("should return nil if the command executes correctly", func() {
-			err := configureKubectl("hoopla")
-			log.Print(err)
-			So(err.Error(), ShouldEqual, "exit status 1")
+		user, err := user.Current()
+		if err != nil {
+			log.Fatalf("Could not determine current user of this system. Err: %v", err)
+		}
+		filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+		Convey("should return nil if a file was able to be configured", func() {
+			err := configureFile()
+			So(err, ShouldEqual, nil)
+		})
+		Convey("should return an err if a file failed to be configured", func() {
+			filenameWithPath = ""
+			err := configureFile()
+			So(err, ShouldNotEqual, nil)
+		})
+	})
+}
+
+func TestGetConfigSettings(t *testing.T) {
+	Convey("getConfigSettings", t, func() {
+		user, err := user.Current()
+		if err != nil {
+			log.Fatalf("Could not determine current user of this system. Err: %v", err)
+		}
+		filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+		Convey("should return nil upon finding an existing alias", func() {
+			err := getConfigSettings("prod")
+			So(err, ShouldEqual, nil)
+		})
+		Convey("should return an error if no alias is found", func() {
+			err := getConfigSettings("fail")
+			So(err, ShouldNotEqual, nil)
+		})
+		Convey("should return an error if the file is not found", func() {
+			filenameWithPath = ""
+			err := getConfigSettings("fail")
+			So(err, ShouldNotEqual, nil)
+		})
+	})
+}
+func TestCreateConfig(t *testing.T) {
+	Convey("getConfigSettings", t, func() {
+		user, err := user.Current()
+		if err != nil {
+			log.Fatalf("Could not determine current user of this system. Err: %v", err)
+		}
+		filenameWithPath = fmt.Sprintf("%s/Downloads/.kubeloginrc.yaml", user.HomeDir)
+		var config Config
+		var aliasConfig AliasConfig
+		Convey("should return nil upon creating the config file", func() {
+			err := config.createConfig(aliasConfig)
+			So(err, ShouldEqual, nil)
+		})
+	})
+}
+
+func TestNewAliasConfig(t *testing.T) {
+	Convey("newAliasConfig", t, func() {
+		user, err := user.Current()
+		if err != nil {
+			log.Fatalf("Could not determine current user of this system. Err: %v", err)
+		}
+		filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+		var config Config
+		Convey("should return nil upon putting in a new entry into the config file", func() {
+			aliasFlag = "test"
+			serverFlag = "testServer"
+			err := config.newAliasConfig()
+			So(err, ShouldEqual, nil)
+		})
+	})
+}
+func TestUpdateAlias(t *testing.T) {
+	Convey("updateAlias", t, func() {
+		user, err := user.Current()
+		if err != nil {
+			log.Fatalf("Could not determine current user of this system. Err: %v", err)
+		}
+		filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+		var config Config
+		var newAliasConfig AliasConfig
+		newAliasConfig.BaseURL = "testServer"
+		newAliasConfig.Alias = "prod"
+		newAliasConfig.KubectlUser = "testuser"
+		config.Aliases = append(config.Aliases, &newAliasConfig)
+		Convey("should return nil upon updating an entry in the config file", func() {
+			aliasFlag = "prod"
+			userFlag = "test"
+			err := config.updateAlias(0)
+			So(err, ShouldEqual, nil)
 		})
 	})
 }
