@@ -72,7 +72,7 @@ func TestConfigureFile(t *testing.T) {
 		if err != nil {
 			log.Fatalf("Could not determine current user of this system. Err: %v", err)
 		}
-		filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+		filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
 		Convey("should return nil if a file was able to be configured", func() {
 			err := configureFile()
 			So(err, ShouldEqual, nil)
@@ -91,7 +91,7 @@ func TestGetConfigSettings(t *testing.T) {
 		if err != nil {
 			log.Fatalf("Could not determine current user of this system. Err: %v", err)
 		}
-		filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+		filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
 		Convey("should return nil upon finding an existing alias", func() {
 			err := getConfigSettings("prod")
 			So(err, ShouldEqual, nil)
@@ -113,7 +113,7 @@ func TestCreateConfig(t *testing.T) {
 		if err != nil {
 			log.Fatalf("Could not determine current user of this system. Err: %v", err)
 		}
-		filenameWithPath = fmt.Sprintf("%s/Downloads/.kubeloginrc.yaml", user.HomeDir)
+		filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
 		var config Config
 		var aliasConfig AliasConfig
 		Convey("should return nil upon creating the config file", func() {
@@ -129,7 +129,7 @@ func TestNewAliasConfig(t *testing.T) {
 		if err != nil {
 			log.Fatalf("Could not determine current user of this system. Err: %v", err)
 		}
-		filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+		filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
 		var config Config
 		Convey("should return nil upon putting in a new entry into the config file", func() {
 			aliasFlag = "test"
@@ -145,7 +145,7 @@ func TestUpdateAlias(t *testing.T) {
 		if err != nil {
 			log.Fatalf("Could not determine current user of this system. Err: %v", err)
 		}
-		filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+		filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
 		var config Config
 		var newAliasConfig AliasConfig
 		newAliasConfig.BaseURL = "testServer"
