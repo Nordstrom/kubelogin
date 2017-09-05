@@ -60,11 +60,12 @@ func makeExchange(token string) error {
 	}
 	client := http.DefaultClient
 	res, err := client.Do(req)
+	// log.Print(url)
+	// res, err := http.Get(url)
 	if err != nil {
 		log.Printf("Unable to make request. %s", err)
 		return err
 	}
-
 	defer res.Body.Close()
 	jwt, err := ioutil.ReadAll(res.Body)
 	if err != nil {

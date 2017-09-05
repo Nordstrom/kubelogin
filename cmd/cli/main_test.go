@@ -18,6 +18,7 @@ func TestFindFreePort(t *testing.T) {
 		})
 	})
 }
+
 func TestMakeExchange(t *testing.T) {
 	Convey("makeExchange", t, func() {
 		Convey("should return an error if the hostFlag is not set or incorrect", func() {

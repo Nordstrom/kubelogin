@@ -22,7 +22,7 @@ build/kubelogin-cli-% : cmd/cli/*.go | build
 	  -v $(PWD)/build:/go/bin \
 	  -e GOARCH=amd64 \
 	  -e GOOS=$* \
-	  golang:1.7.4 \
+	  golang:1.9.0 \
 	  go build -v -o /go/bin/kubelogin-cli-$* \
 	    github.com/nordstrom/kubelogin/cmd/cli/ \
 
