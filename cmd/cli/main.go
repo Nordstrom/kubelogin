@@ -259,7 +259,7 @@ func main() {
 	}
 	filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
 	if len(os.Args) < 3 {
-		log.Fatal("Must supply login or config command with flags/alias")
+		log.Fatal("Kubelogin Usage: \n\n kubelogin config --server=server --alias=alias --kubectl_user=user \n\n kubelogin login alias \n kubelogin login --server=server --kubectl_user=user")
 	}
 	switch os.Args[1] {
 	case "login":
@@ -290,6 +290,6 @@ func main() {
 			os.Exit(0)
 		}
 	default:
-		log.Fatal("Correct usage: kublogin COMMAND FLAGS | valid commands are login or config")
+		log.Fatal("Kubelogin Usage: \n\n kubelogin config --server=server --alias=alias --kubectl_user=user \n\n kubelogin login alias \n kubelogin login --server=server --kubectl_user=user")
 	}
 }
