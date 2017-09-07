@@ -94,7 +94,7 @@ func TestGetConfigSettings(t *testing.T) {
 		}
 		filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
 		Convey("should return nil upon finding an existing alias", func() {
-			err := getConfigSettings("prod")
+			err := getConfigSettings("test")
 			So(err, ShouldEqual, nil)
 		})
 		Convey("should return an error if no alias is found", func() {
@@ -150,11 +150,11 @@ func TestUpdateAlias(t *testing.T) {
 		var config Config
 		var newAliasConfig AliasConfig
 		newAliasConfig.BaseURL = "testServer"
-		newAliasConfig.Alias = "prod"
+		newAliasConfig.Alias = "test"
 		newAliasConfig.KubectlUser = "testuser"
 		config.Aliases = append(config.Aliases, &newAliasConfig)
 		Convey("should return nil upon updating an entry in the config file", func() {
-			aliasFlag = "prod"
+			aliasFlag = "test"
 			userFlag = "test"
 			err := config.updateAlias(0)
 			So(err, ShouldEqual, nil)
