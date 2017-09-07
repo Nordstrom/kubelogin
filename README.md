@@ -24,8 +24,10 @@ How to use these verbs:
 1. Download binary file and move it into your bin directory
 
 
-##Note
+
+### Note
 If you experience timeout issues with the CLI, check your proxy settings.
+
 
 # Server
 
