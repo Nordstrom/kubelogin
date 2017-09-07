@@ -1,4 +1,4 @@
-# Kubelogin 
+# Kubelogin
 
 Repo for the kubelogin Server and CLI
 
@@ -6,11 +6,11 @@ Repo for the kubelogin Server and CLI
 # CLI
 
 
-## Usage 
+## Usage
 The intended usage of this CLI is to communicate with the kubelogin server to set the token field of the kubectl config file. The kubernetes API server will use this token for OIDC authentication.
 
 The CLI accepts two verbs:
-**login** and **config** 
+**login** and **config**
 
 How to use these verbs:
 
@@ -23,6 +23,9 @@ How to use these verbs:
 ## Pre-Deploy Action & Configuration
 1. Download binary file and move it into your bin directory
 
+
+###Note
+If you experience timeout issues with the CLI, check your proxy settings. 
 
 # Server
 
@@ -60,7 +63,7 @@ The following are **REQUIRED** to be set up in the Kubernetes environment
 | **REDIRECT_URL** | this is the URL that the OIDC provider will use to callback to this server |
 | **REDIS_URL** | upon deploying Redis in the same namespace as this server, this will be set |
 | **REDIS_PASSWORD** | same as Redis URL |
-| **REDIS_TTL** | this sets the time to live for each entry into Redis. Defaults to 10 seconds if not set | 
+| **REDIS_TTL** | this sets the time to live for each entry into Redis. Defaults to 10 seconds if not set |
 | **DOWNLOAD_DIR** | this is the overall directory to use when searching for the binary files. For example: foo/bar/download. Defaults to /download if not set |
 
 Note about the download directory: We have standardized on each download file residing inside a folder labeled as the respective operating system i.e., /mac /windows and /linux which are contained in an overarching folder labeled /download which resides in the root of the Docker image. The name of the download folder can change and the path to this folder can change as well. However /mac /windows and /linux will not change and if you put the download files in different folders, the links will not work unless you change the html in the code; but these changes will remain local to your machine and your deployment and will not be merged into our master branch.

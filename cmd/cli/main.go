@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -128,6 +129,7 @@ func beginInteraction() {
 	}()
 	<-doneChannel
 	log.Print("You are now logged in! Enjoy kubectl-ing!")
+	time.Sleep(1 * time.Second)
 }
 
 func setFlags(command *flag.FlagSet, loginCmd bool) {
