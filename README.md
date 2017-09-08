@@ -24,6 +24,8 @@ How to use these verbs:
 1. Download binary file and move it into your bin directory
 
 
+## Post-Deploy Action & Configuration
+1. For first time use or a username change, you'll need to run the following: `kubectl config set-context CLUSTER_ID --user=USER` where USER is what you defined kubectl_user as when running `kubelogin config`. If you did not set kubectl_user when running config, it will default to kubelogin_user.
 
 ### Note
 If you experience timeout issues with the CLI, check your proxy settings.
