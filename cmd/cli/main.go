@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
-	"time"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -61,11 +61,12 @@ func makeExchange(token string) error {
 	}
 	client := http.DefaultClient
 	res, err := client.Do(req)
-	// log.Print(url)
-	// res, err := http.Get(url)
 	if err != nil {
 		log.Printf("Unable to make request. %s", err)
 		return err
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Fatalf("Failed to retrieve token from server. Please try again or contact the kubernetes team")
 	}
 	defer res.Body.Close()
 	jwt, err := ioutil.ReadAll(res.Body)
@@ -85,7 +86,10 @@ func localHandler(w http.ResponseWriter, r *http.Request) {
 	if err := makeExchange(token); err != nil {
 		log.Fatalf("Could not exchange token for jwt %v", err)
 	}
+	var mutex = &sync.Mutex{}
+	mutex.Lock()
 	fmt.Fprint(w, "You are now logged in! You can close me  :)")
+	mutex.Unlock()
 	doneChannel <- true
 }
 
@@ -129,7 +133,7 @@ func beginInteraction() {
 	}()
 	<-doneChannel
 	log.Print("You are now logged in! Enjoy kubectl-ing!")
-	time.Sleep(1 * time.Second)
+	os.Exit(0)
 }
 
 func setFlags(command *flag.FlagSet, loginCmd bool) {

@@ -115,10 +115,10 @@ func TestGenerateToken(t *testing.T) {
 	})
 }
 
-func TestExchangeToken(t *testing.T) {
-	Convey("exchangeToken", t, func() {
+func TestFetchJWTForToken(t *testing.T) {
+	Convey("fetchJWTForToken", t, func() {
 		Convey("should error out since we can't access the Redis cache offline", func() {
-			_, err := exchangeToken("hoopla")
+			_, err := fetchJWTForToken("hoopla")
 			So(err, ShouldNotEqual, nil)
 		})
 	})

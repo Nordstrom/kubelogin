@@ -68,9 +68,8 @@ func (authClient *oidcClient) getOAuth2Config(scopes []string) *oauth2.Config {
 	}
 }
 
-// used to grab the field from the callback request
+// used to grab fields from HTTP requests
 func getField(request *http.Request, fieldName string) string {
-
 	if request.FormValue(fieldName) != "" {
 		log.Printf("%s: [%s]", fieldName, request.FormValue(fieldName))
 		return request.FormValue(fieldName)
@@ -150,7 +149,6 @@ func (authClient *oidcClient) callbackHandler(writer http.ResponseWriter, reques
 		http.Error(writer, "Failed to generate send back url", http.StatusInternalServerError)
 		return
 	}
-
 	http.Redirect(writer, request, sendBackURL, http.StatusSeeOther)
 
 	elapsedTime := time.Since(startTime)
@@ -158,11 +156,12 @@ func (authClient *oidcClient) callbackHandler(writer http.ResponseWriter, reques
 	serverResponseLatencies.WithLabelValues(request.Method).Observe(float64(elapsedSec))
 }
 
-func exchangeToken(token string) (string, error) {
+func fetchJWTForToken(token string) (string, error) {
+	log.Printf("Token inside exchangeToken: %v", token)
 	jwt, err := redisClient.Get(token).Result()
 	if err != nil {
 		errorCounter.Inc()
-		log.Printf("Error exchanging token for jwt: %v", err)
+		log.Printf("Error exchanging token for JWT: %v", err)
 		return "", err
 	}
 	return jwt, nil
@@ -171,7 +170,7 @@ func exchangeToken(token string) (string, error) {
 func exchangeHandler(writer http.ResponseWriter, request *http.Request) {
 	startTime := time.Now()
 	token := getField(request, tokenField)
-	jwt, err := exchangeToken(token)
+	jwt, err := fetchJWTForToken(token)
 	if err != nil {
 		log.Print(err)
 		errorCounter.Inc()
@@ -194,6 +193,7 @@ func setToken(jwt, token string) error {
 		return err
 	}
 	ttl := time.Duration(rawTime) * time.Second
+	log.Print("Time to live: " + ttl.String())
 	if err := redisClient.Set(token, jwt, ttl).Err(); err != nil {
 		errorCounter.Inc()
 		log.Printf("Error storing token in database: %v", err)
@@ -216,6 +216,7 @@ func generateToken(jwt string) (string, error) {
 
 // this will take the JWT and port and generate the URL that will be redirected to
 func generateSendBackURL(jwt string, port string) (string, error) {
+	log.Print(jwt)
 	stringToken, err := generateToken(jwt)
 	if err != nil {
 		errorCounter.Inc()
@@ -301,6 +302,9 @@ func main() {
 	}
 	if os.Getenv("REDIS_PASSWORD") == "" {
 		log.Fatal("REDIS_PASSWORD not set! Is redis deployed in the same namespace?")
+	}
+	if os.Getenv("REDIS_TTL") == "" {
+		log.Fatal("REDIS_TTL not set! Is redis deployed in the same namespace?")
 	}
 	if err := makeRedisClient(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD")); err != nil {
 		log.Fatalf("Error communicating with Redis: %v", err)
