@@ -36,6 +36,8 @@ type oidcClient struct {
 	verifier     *oidc.IDTokenVerifier
 	provider     *oidc.Provider
 	client       *http.Client
+	groupsClaim  string
+	userClaim    string
 }
 
 const (
@@ -107,7 +109,7 @@ func (app *app) handleCLILogin(writer http.ResponseWriter, request *http.Request
 		http.Error(writer, "No return port in URL", http.StatusBadRequest)
 		return
 	}
-	var scopes = []string{"openid", os.Getenv("GROUPS_CLAIM"), os.Getenv("USER_CLAIM")}
+	var scopes = []string{"openid", app.authClient.groupsClaim, app.authClient.userClaim}
 	authCodeURL := app.authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
 
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
@@ -239,7 +241,7 @@ func (rv *redisValues) generateSendBackURL(jwt string, port string) (string, err
 }
 
 // sets up the struct for later use
-func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider) *oidcClient {
+func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider, groupsClaim string, userClaim string) *oidcClient {
 	return &oidcClient{
 		clientID:     clientID,
 		clientSecret: clientSecret,
@@ -247,6 +249,8 @@ func newAuthClient(clientID string, clientSecret string, redirectURI string, pro
 		client:       http.DefaultClient,
 		provider:     provider,
 		verifier:     provider.Verifier(&oidc.Config{ClientID: clientID}),
+		groupsClaim:  groupsClaim,
+		userClaim:    userClaim,
 	}
 }
 
@@ -281,10 +285,10 @@ func setRedisValues(redisURL, redisPassword, redisTTL string) *redisValues {
 	}
 }
 
-func setAppMemberFields(redisURL string, redisPassword string, redisTTL string, clientID string, clientSecret string, redirectURI string, provider *oidc.Provider) app {
+func setAppMemberFields(redisURL string, redisPassword string, redisTTL string, clientID string, clientSecret string, redirectURI string, provider *oidc.Provider, groupsClaim string, userClaim string) app {
 	return app{
 		redisValues: setRedisValues(redisURL, redisPassword, redisTTL),
-		authClient:  newAuthClient(clientID, clientSecret, redirectURI, provider),
+		authClient:  newAuthClient(clientID, clientSecret, redirectURI, provider, groupsClaim, userClaim),
 	}
 }
 
@@ -344,7 +348,15 @@ func main() {
 	if downloadDir == "" {
 		downloadDir = "/download"
 	}
-	app := setAppMemberFields(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD"), os.Getenv("REDIS_TTL"), os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider)
+	groupsClaim := os.Getenv("GROUPS_CLAIM")
+	if groupsClaim == "" {
+		groupsClaim = "groups"
+	}
+	userClaim := os.Getenv("USER_CLAIM")
+	if userClaim == "" {
+		userClaim = "email"
+	}
+	app := setAppMemberFields(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD"), os.Getenv("REDIS_TTL"), os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider, groupsClaim, userClaim)
 	if err := app.redisValues.makeRedisClient(); err != nil {
 		log.Fatalf("Error communicating with Redis: %v", err)
 	}

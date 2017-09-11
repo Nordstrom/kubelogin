@@ -12,7 +12,7 @@ import (
 
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
 		unitTestServer := httptest.NewServer(getMux(app, "/downoad"))
 		Convey("The handleCLILogin function", func() {
 			Convey("should get a status code 303 for a correct redirect", func() {
@@ -98,7 +98,7 @@ func TestGetField(t *testing.T) {
 
 func TestMakeRedisClient(t *testing.T) {
 	Convey("makeRedisClient", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
 		Convey("should fail since no Redis address environment variable was set", func() {
 			err := app.redisValues.makeRedisClient()
 			So(err, ShouldNotEqual, nil)
@@ -108,7 +108,7 @@ func TestMakeRedisClient(t *testing.T) {
 
 func TestGenerateToken(t *testing.T) {
 	Convey("generateToken", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
 		Convey("should pass since we are just returning a string", func() {
 			token, _ := app.redisValues.generateToken("hoopla")
 			So(token, ShouldNotEqual, nil)
@@ -118,7 +118,7 @@ func TestGenerateToken(t *testing.T) {
 
 func TestFetchJWTForToken(t *testing.T) {
 	Convey("fetchJWTForToken", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
 		app.redisValues.makeRedisClient()
 		Convey("should error out since we can't access the Redis cache offline", func() {
 			_, err := app.redisValues.fetchJWTForToken("hoopla")
@@ -129,7 +129,7 @@ func TestFetchJWTForToken(t *testing.T) {
 
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
 		Convey("should pass since we will encounter errors when trying to add our value to Redis", func() {
 			_, err := app.redisValues.generateSendBackURL("hoopla", "3000")
 			log.Printf("The err is %s", err)
@@ -142,13 +142,14 @@ func TestNewAuthClient(t *testing.T) {
 	Convey("authClientSetup", t, func() {
 		provider := &oidc.Provider{}
 		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
-			testClient := newAuthClient("foo", "bar", "redirect", provider)
+			testClient := newAuthClient("foo", "bar", "redirect", provider, "fooGroups", "fooUsers")
 			correctID := testClient.clientID == "foo"
 			correctSec := testClient.clientSecret == "bar"
 			correctURI := testClient.redirectURI == "redirect"
 			correctClient := testClient.client == http.DefaultClient
-
-			overallCorrect := correctClient && correctID && correctSec && correctURI
+			correctUser := testClient.userClaim == "fooUsers"
+			correctGroup := testClient.groupsClaim == "fooGroups"
+			overallCorrect := correctClient && correctID && correctSec && correctURI && correctUser && correctGroup
 			So(overallCorrect, ShouldEqual, true)
 		})
 	})
@@ -156,7 +157,7 @@ func TestNewAuthClient(t *testing.T) {
 
 func TestHealthHandler(t *testing.T) {
 	Convey("healthHandler", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
 		unitTestServer := httptest.NewServer(getMux(app, "/download"))
 		Convey("Should write back to the response writer a statusOK", func() {
 			resp, _ := http.Get(unitTestServer.URL + "/health")
