@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -81,15 +81,12 @@ func makeExchange(token string) error {
 	return nil
 }
 
-func localHandler(w http.ResponseWriter, r *http.Request) {
+func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	if err := makeExchange(token); err != nil {
 		log.Fatalf("Could not exchange token for jwt %v", err)
 	}
-	var mutex = &sync.Mutex{}
-	mutex.Lock()
 	fmt.Fprint(w, "You are now logged in! You can close me  :)")
-	mutex.Unlock()
 	doneChannel <- true
 }
 
@@ -115,11 +112,14 @@ func generateAuthURL() (string, string, error) {
 
 func createMux() *http.ServeMux {
 	newMux := http.NewServeMux()
-	newMux.HandleFunc("/", localHandler)
+	newMux.HandleFunc("/exchange/", tokenHandler)
+	newMux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		return
+	})
 	return newMux
 }
 
-func beginInteraction() {
+func generateURLAndListenForServerResponse() {
 	loginURL, portNum, err := generateAuthURL()
 	if err != nil {
 		log.Fatal(err.Error())
@@ -133,7 +133,7 @@ func beginInteraction() {
 	}()
 	<-doneChannel
 	log.Print("You are now logged in! Enjoy kubectl-ing!")
-	os.Exit(0)
+	time.Sleep(1 * time.Second)
 }
 
 func setFlags(command *flag.FlagSet, loginCmd bool) {
@@ -274,14 +274,14 @@ func main() {
 			if err := getConfigSettings(os.Args[2]); err != nil {
 				log.Fatal(err)
 			}
-			beginInteraction()
+			generateURLAndListenForServerResponse()
 		} else {
 			loginCommmand.Parse(os.Args[2:])
 			if loginCommmand.Parsed() {
 				if serverFlag == "" {
 					log.Fatal("--server must be set!")
 				}
-				beginInteraction()
+				generateURLAndListenForServerResponse()
 			}
 		}
 	case "config":

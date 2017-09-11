@@ -12,19 +12,18 @@ import (
 
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
-		provider := &oidc.Provider{}
-		authClient := newAuthClient("foo", "bar", "redirect", provider)
-		unitTestServer := httptest.NewServer(getMux(authClient, "/downoad"))
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
+		unitTestServer := httptest.NewServer(getMux(app, "/downoad"))
 		Convey("The handleCLILogin function", func() {
 			Convey("should get a status code 303 for a correct redirect", func() {
 				url := unitTestServer.URL + "/login?port=8000"
-				authClient.client = &http.Client{
+				app.authClient.client = &http.Client{
 					CheckRedirect: func(req *http.Request, via []*http.Request) error {
 						return http.ErrUseLastResponse
 					},
 				}
 				request, _ := http.NewRequest("GET", url, nil)
-				resp, _ := authClient.client.Do(request)
+				resp, _ := app.authClient.client.Do(request)
 				log.Print(resp.StatusCode)
 				resp.Body.Close()
 				So(resp.StatusCode, ShouldEqual, 303)
@@ -40,14 +39,14 @@ func TestServerSpecs(t *testing.T) {
 			Convey("should return a bad request if no code or state is in the url", func() {
 				url := unitTestServer.URL + "/callback"
 				request, _ := http.NewRequest("GET", url, nil)
-				response, _ := authClient.client.Do(request)
+				response, _ := app.authClient.client.Do(request)
 				response.Body.Close()
 				So(response.StatusCode, ShouldEqual, http.StatusBadRequest)
 			})
 			Convey("should return a internal server error if the authcode is not valid", func() {
 				fakeCodeURL := unitTestServer.URL + "/callback?code=asdf123&state=3000"
 				request, _ := http.NewRequest("GET", fakeCodeURL, nil)
-				response, _ := authClient.client.Do(request)
+				response, _ := app.authClient.client.Do(request)
 				response.Body.Close()
 				So(response.StatusCode, ShouldEqual, http.StatusInternalServerError)
 			})
@@ -55,7 +54,7 @@ func TestServerSpecs(t *testing.T) {
 		Convey("defaultHandler", func() {
 			Convey("should have basic html written on the page i.e., body is not nil", func() {
 				request, _ := http.NewRequest("GET", unitTestServer.URL, nil)
-				response, _ := authClient.client.Do(request)
+				response, _ := app.authClient.client.Do(request)
 				response.Body.Close()
 				So(response.Body, ShouldNotEqual, nil)
 			})
@@ -66,7 +65,7 @@ func TestServerSpecs(t *testing.T) {
 		})
 		Convey("exchangeHandler", func() {
 			Convey("should return a internal server error due to Redis not being available", func() {
-				makeRedisClient("testurl", "testpass")
+				app.redisValues.makeRedisClient()
 				exchangeURL := unitTestServer.URL + "/exchange?token=hoopla"
 				response, _ := http.Get(exchangeURL)
 				response.Body.Close()
@@ -99,8 +98,9 @@ func TestGetField(t *testing.T) {
 
 func TestMakeRedisClient(t *testing.T) {
 	Convey("makeRedisClient", t, func() {
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
 		Convey("should fail since no Redis address environment variable was set", func() {
-			err := makeRedisClient("testurl", "testpass")
+			err := app.redisValues.makeRedisClient()
 			So(err, ShouldNotEqual, nil)
 		})
 	})
@@ -108,8 +108,9 @@ func TestMakeRedisClient(t *testing.T) {
 
 func TestGenerateToken(t *testing.T) {
 	Convey("generateToken", t, func() {
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
 		Convey("should pass since we are just returning a string", func() {
-			token, _ := generateToken("hoopla")
+			token, _ := app.redisValues.generateToken("hoopla")
 			So(token, ShouldNotEqual, nil)
 		})
 	})
@@ -117,8 +118,10 @@ func TestGenerateToken(t *testing.T) {
 
 func TestFetchJWTForToken(t *testing.T) {
 	Convey("fetchJWTForToken", t, func() {
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
+		app.redisValues.makeRedisClient()
 		Convey("should error out since we can't access the Redis cache offline", func() {
-			_, err := fetchJWTForToken("hoopla")
+			_, err := app.redisValues.fetchJWTForToken("hoopla")
 			So(err, ShouldNotEqual, nil)
 		})
 	})
@@ -126,8 +129,9 @@ func TestFetchJWTForToken(t *testing.T) {
 
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
 		Convey("should pass since we will encounter errors when trying to add our value to Redis", func() {
-			_, err := generateSendBackURL("hoopla", "3000")
+			_, err := app.redisValues.generateSendBackURL("hoopla", "3000")
 			log.Printf("The err is %s", err)
 			So(err, ShouldNotEqual, nil)
 		})
@@ -152,9 +156,8 @@ func TestNewAuthClient(t *testing.T) {
 
 func TestHealthHandler(t *testing.T) {
 	Convey("healthHandler", t, func() {
-		provider := &oidc.Provider{}
-		authClient := newAuthClient("foo", "bar", "redirect", provider)
-		unitTestServer := httptest.NewServer(getMux(authClient, "/download"))
+		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{})
+		unitTestServer := httptest.NewServer(getMux(app, "/download"))
 		Convey("Should write back to the response writer a statusOK", func() {
 			resp, _ := http.Get(unitTestServer.URL + "/health")
 			So(resp.StatusCode, ShouldEqual, 200)
