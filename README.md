@@ -21,7 +21,7 @@ How to use these verbs:
 | `login` | server, kubectl_user | if you do not wish to create a config file and only intend on logging in just once, you can set the server directly using the --server flag which **MUST** be set; kubectl_user will still default to kubelogin_user if not supplied. The alias flag is not accepted here | `kubelogin login --server=foo --kubectl_user=bar ` |
 
 ## Pre-Deploy Action & Configuration
-1. Download binary file and move it into your bin directory
+1. Download binary file from the server and move it into your bin directory. Speak with your friendly neighborhood Kubernetes team to get the link :)
 
 
 ## Post-Deploy Action & Configuration
