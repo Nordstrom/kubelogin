@@ -4,7 +4,9 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/coreos/go-oidc"
 	. "github.com/smartystreets/goconvey/convey"
@@ -12,7 +14,10 @@ import (
 
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
+		redisTTL, _ := time.ParseDuration("10s")
+		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		app := setAppMemberFields(rv, oidcClient)
 		unitTestServer := httptest.NewServer(getMux(app, "/downoad"))
 		Convey("The handleCLILogin function", func() {
 			Convey("should get a status code 303 for a correct redirect", func() {
@@ -98,7 +103,10 @@ func TestGetField(t *testing.T) {
 
 func TestMakeRedisClient(t *testing.T) {
 	Convey("makeRedisClient", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
+		redisTTL, _ := time.ParseDuration("10s")
+		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		app := setAppMemberFields(rv, oidcClient)
 		Convey("should fail since no Redis address environment variable was set", func() {
 			err := app.redisValues.makeRedisClient()
 			So(err, ShouldNotEqual, nil)
@@ -108,7 +116,11 @@ func TestMakeRedisClient(t *testing.T) {
 
 func TestGenerateToken(t *testing.T) {
 	Convey("generateToken", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
+		redisTTL, _ := time.ParseDuration("10s")
+		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		app := setAppMemberFields(rv, oidcClient)
+		app.redisValues.makeRedisClient()
 		Convey("should pass since we are just returning a string", func() {
 			token, _ := app.redisValues.generateToken("hoopla")
 			So(token, ShouldNotEqual, nil)
@@ -118,7 +130,10 @@ func TestGenerateToken(t *testing.T) {
 
 func TestFetchJWTForToken(t *testing.T) {
 	Convey("fetchJWTForToken", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
+		redisTTL, _ := time.ParseDuration("10s")
+		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		app := setAppMemberFields(rv, oidcClient)
 		app.redisValues.makeRedisClient()
 		Convey("should error out since we can't access the Redis cache offline", func() {
 			_, err := app.redisValues.fetchJWTForToken("hoopla")
@@ -129,7 +144,11 @@ func TestFetchJWTForToken(t *testing.T) {
 
 func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
+		redisTTL, _ := time.ParseDuration("10s")
+		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		app := setAppMemberFields(rv, oidcClient)
+		app.redisValues.makeRedisClient()
 		Convey("should pass since we will encounter errors when trying to add our value to Redis", func() {
 			_, err := app.redisValues.generateSendBackURL("hoopla", "3000")
 			log.Printf("The err is %s", err)
@@ -157,7 +176,10 @@ func TestNewAuthClient(t *testing.T) {
 
 func TestHealthHandler(t *testing.T) {
 	Convey("healthHandler", t, func() {
-		app := setAppMemberFields("redisFoo", "redisBar", "redisFoobar", "foo", "bar", "redirect", &oidc.Provider{}, "fooGroups", "barUsers")
+		redisTTL, _ := time.ParseDuration("10s")
+		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		app := setAppMemberFields(rv, oidcClient)
 		unitTestServer := httptest.NewServer(getMux(app, "/download"))
 		Convey("Should write back to the response writer a statusOK", func() {
 			resp, _ := http.Get(unitTestServer.URL + "/health")

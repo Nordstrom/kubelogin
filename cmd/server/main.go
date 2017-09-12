@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/coreos/go-oidc"
@@ -25,7 +24,7 @@ type app struct {
 type redisValues struct {
 	password   string
 	address    string
-	timeToLive string
+	timeToLive time.Duration
 	client     *redis.Client
 }
 
@@ -204,12 +203,7 @@ func (app *app) exchangeHandler(writer http.ResponseWriter, request *http.Reques
 }
 
 func (rv *redisValues) setToken(jwt, token string) error {
-	rawTime, err := strconv.Atoi(os.Getenv("REDIS_TTL"))
-	if err != nil {
-		return err
-	}
-	ttl := time.Duration(rawTime) * time.Second
-	if err := rv.client.Set(token, jwt, ttl).Err(); err != nil {
+	if err := rv.client.Set(token, jwt, rv.timeToLive).Err(); err != nil {
 		log.Printf("Error storing token in database: %v", err)
 		return err
 	}
@@ -277,7 +271,7 @@ func getMux(app app, downloadDir string) *http.ServeMux {
 	return newMux
 }
 
-func setRedisValues(redisURL, redisPassword, redisTTL string) *redisValues {
+func setRedisValues(redisURL string, redisPassword string, redisTTL time.Duration) *redisValues {
 	return &redisValues{
 		address:    redisURL,
 		password:   redisPassword,
@@ -285,10 +279,10 @@ func setRedisValues(redisURL, redisPassword, redisTTL string) *redisValues {
 	}
 }
 
-func setAppMemberFields(redisURL string, redisPassword string, redisTTL string, clientID string, clientSecret string, redirectURI string, provider *oidc.Provider, groupsClaim string, userClaim string) app {
+func setAppMemberFields(rv *redisValues, oidcClient *oidcClient) app {
 	return app{
-		redisValues: setRedisValues(redisURL, redisPassword, redisTTL),
-		authClient:  newAuthClient(clientID, clientSecret, redirectURI, provider, groupsClaim, userClaim),
+		redisValues: rv,
+		authClient:  oidcClient,
 	}
 }
 
@@ -320,14 +314,11 @@ func init() {
 // creates our Redis client for communication
 // creates an auth client based on the environment variables and provider
 func main() {
-	if os.Getenv("REDIS_URL") == "" {
-		log.Fatal("REDIS_URL not set! Is redis deployed in the same namespace?")
+	if os.Getenv("REDIS_ADDR") == "" {
+		log.Fatal("REDIS_ADDR not set! Is this variable configured in the deployment?")
 	}
 	if os.Getenv("REDIS_PASSWORD") == "" {
-		log.Fatal("REDIS_PASSWORD not set! Is redis deployed in the same namespace?")
-	}
-	if os.Getenv("REDIS_TTL") == "" {
-		log.Fatal("REDIS_TTL not set! Is redis deployed in the same namespace?")
+		log.Fatal("REDIS_PASSWORD not set! This should be supplied as a secret in Kubernetes")
 	}
 	if os.Getenv("CLIENT_ID") == "" {
 		log.Fatal("CLIENT_ID not set!")
@@ -341,7 +332,7 @@ func main() {
 	ctx := oidc.ClientContext(context.Background(), http.DefaultClient)
 	provider, err := oidc.NewProvider(ctx, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err.Error())
+		log.Fatalf("error: %v\n", err.Error())
 	}
 	listenPort := ":" + os.Getenv("LISTEN_PORT")
 	downloadDir := os.Getenv("DOWNLOAD_DIR")
@@ -356,7 +347,17 @@ func main() {
 	if userClaim == "" {
 		userClaim = "email"
 	}
-	app := setAppMemberFields(os.Getenv("REDIS_URL"), os.Getenv("REDIS_PASSWORD"), os.Getenv("REDIS_TTL"), os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider, groupsClaim, userClaim)
+	ttl := os.Getenv("REDIS_TTL")
+	if ttl == "" {
+		ttl = "10s"
+	}
+	redisTTL, err := time.ParseDuration(ttl)
+	if err != nil {
+		log.Fatal("Failed to parse the duration of the Redis TTL, please check that a valid value was set. e.g. 10s or 1m10s")
+	}
+	rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
+	oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider, groupsClaim, userClaim)
+	app := setAppMemberFields(rv, oidcClient)
 	if err := app.redisValues.makeRedisClient(); err != nil {
 		log.Fatalf("Error communicating with Redis: %v", err)
 	}
