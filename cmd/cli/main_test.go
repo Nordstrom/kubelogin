@@ -26,7 +26,7 @@ func TestMakeExchange(t *testing.T) {
 			So(err, ShouldNotEqual, nil)
 		})
 		Convey("should return an error if the token can't be found", func() {
-			serverFlag = "www.google.com"
+			kubeloginServerBaseURL = "www.google.com"
 			err := makeExchange("hoopla")
 			So(err, ShouldNotEqual, nil)
 		})
@@ -75,12 +75,12 @@ func TestConfigureFile(t *testing.T) {
 		}
 		filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
 		Convey("should return nil if a file was able to be configured", func() {
-			err := configureFile()
+			err := configureFile("foo", "bar", "foobar")
 			So(err, ShouldEqual, nil)
 		})
 		Convey("should return an err if a file failed to be configured", func() {
 			filenameWithPath = ""
-			err := configureFile()
+			err := configureFile("foo", "bar", "foobar")
 			So(err, ShouldNotEqual, nil)
 		})
 	})
@@ -134,9 +134,9 @@ func TestNewAliasConfig(t *testing.T) {
 		var config Config
 		Convey("should return nil upon putting in a new entry into the config file", func() {
 			aliasFlag = "test"
-			serverFlag = "testServer"
-			err := config.newAliasConfig()
-			So(err, ShouldEqual, nil)
+			kubeloginServerBaseURL = "testServer"
+			newConfig := config.newAliasConfig("foo", "bar", "foobar")
+			So(newConfig, ShouldNotBeEmpty)
 		})
 	})
 }
@@ -156,7 +156,7 @@ func TestUpdateAlias(t *testing.T) {
 		Convey("should return nil upon updating an entry in the config file", func() {
 			aliasFlag = "test"
 			userFlag = "test"
-			err := config.updateAlias(0)
+			err := config.updateAlias(&newAliasConfig)
 			So(err, ShouldEqual, nil)
 		})
 	})

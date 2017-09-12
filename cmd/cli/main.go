@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"strings"
 	"time"
 
@@ -19,11 +20,11 @@ import (
 )
 
 var (
-	aliasFlag        string
-	userFlag         string
-	serverFlag       string
-	doneChannel      chan bool
-	filenameWithPath string
+	aliasFlag              string
+	userFlag               string
+	kubeloginServerBaseURL string
+	doneChannel            chan bool
+	filenameWithPath       string
 )
 
 //AliasConfig contains the structure of what's in the config file
@@ -33,7 +34,6 @@ type AliasConfig struct {
 	KubectlUser string `yaml:"kubectl-user"`
 }
 
-//Config struct to wrap the Aliases with their specific values inside of
 type Config struct {
 	Aliases []*AliasConfig `yaml:"aliases"`
 }
@@ -53,7 +53,7 @@ func findFreePort() (string, error) {
 }
 
 func makeExchange(token string) error {
-	url := fmt.Sprintf("%s/exchange?token=%s", serverFlag, token)
+	url := fmt.Sprintf("%s/exchange?token=%s", kubeloginServerBaseURL, token)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Printf("Unable to create request. %s", err)
@@ -66,7 +66,7 @@ func makeExchange(token string) error {
 		return err
 	}
 	if res.StatusCode != http.StatusOK {
-		log.Fatalf("Failed to retrieve token from server. Please try again or contact the kubernetes team")
+		log.Fatalf("Failed to retrieve token from server. Please try again or contact your administrator")
 	}
 	defer res.Body.Close()
 	jwt, err := ioutil.ReadAll(res.Body)
@@ -86,7 +86,7 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err := makeExchange(token); err != nil {
 		log.Fatalf("Could not exchange token for jwt %v", err)
 	}
-	fmt.Fprint(w, "You are now logged in! You can close me  :)")
+	fmt.Fprint(w, "You are now logged in! You can close this window")
 	doneChannel <- true
 }
 
@@ -105,7 +105,7 @@ func generateAuthURL() (string, string, error) {
 		return "", "", err
 	}
 
-	loginURL := fmt.Sprintf("%s/login?port=%s", serverFlag, portNum)
+	loginURL := fmt.Sprintf("%s/login?port=%s", kubeloginServerBaseURL, portNum)
 
 	return loginURL, portNum, nil
 }
@@ -114,6 +114,8 @@ func createMux() *http.ServeMux {
 	newMux := http.NewServeMux()
 	newMux.HandleFunc("/exchange/", tokenHandler)
 	newMux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(""))
 		return
 	})
 	return newMux
@@ -126,7 +128,7 @@ func generateURLAndListenForServerResponse() {
 	}
 	doneChannel = make(chan bool)
 	go func() {
-		log.Print("\nFollow this url if you want to live!: ", loginURL)
+		log.Print("Follow this URL to log into auth provider: ", loginURL)
 		if err := http.ListenAndServe(":"+portNum, createMux()); err != nil {
 			log.Fatalf("Error listening on port: %s. Error: %v", portNum, err)
 		}
@@ -140,8 +142,8 @@ func setFlags(command *flag.FlagSet, loginCmd bool) {
 	if !loginCmd {
 		command.StringVar(&aliasFlag, "alias", "default", "alias name in the config file, used for an easy login")
 	}
-	command.StringVar(&userFlag, "kubectl_user", "kubelogin_user", "username used in kube config")
-	command.StringVar(&serverFlag, "server", "", "hostname of the server url, correct paths added in other functions")
+	command.StringVar(&userFlag, "kubectlUser", "kubelogin_user", "username used in kubectl config")
+	command.StringVar(&kubeloginServerBaseURL, "server", "", "base URL of the server, correct paths added in other functions")
 }
 func getConfigSettings(alias string) error {
 	yamlFile, err := ioutil.ReadFile(filenameWithPath)
@@ -153,22 +155,22 @@ func getConfigSettings(alias string) error {
 		return errors.Wrap(err, "failed to unmarshal yaml file for login use")
 	}
 
-	index, ok := config.aliasSearch(alias)
+	aliasConfig, ok := config.aliasSearch(alias)
 	if !ok {
 		return errors.New("Could not find specified alias, check spelling or use the config verb to create an alias")
 	}
-	userFlag = config.Aliases[index].KubectlUser
-	serverFlag = config.Aliases[index].BaseURL
+	userFlag = aliasConfig.KubectlUser
+	kubeloginServerBaseURL = aliasConfig.BaseURL
 	return nil
 }
 
-func (config *Config) aliasSearch(alias string) (int, bool) {
+func (config *Config) aliasSearch(alias string) (*AliasConfig, bool) {
 	for index, aliases := range config.Aliases {
 		if alias == aliases.Alias {
-			return index, true
+			return config.Aliases[index], true
 		}
 	}
-	return -1, false
+	return nil, false
 }
 
 func (config *Config) createConfig(aliasConfig AliasConfig) error {
@@ -179,56 +181,53 @@ func (config *Config) createConfig(aliasConfig AliasConfig) error {
 	}
 	log.Print("Config file created, setting config values...")
 	config.Aliases = make([]*AliasConfig, 0)
-	aliasConfig.BaseURL = serverFlag
+	aliasConfig.BaseURL = kubeloginServerBaseURL
 	aliasConfig.Alias = aliasFlag
 	aliasConfig.KubectlUser = userFlag
-	config.Aliases = append(config.Aliases, &aliasConfig)
-	marshaledYaml, err := yaml.Marshal(config)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal yaml when creating config file")
+	config.appendAlias(aliasConfig)
+	if err := config.writeToFile(); err != nil {
+		log.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filenameWithPath, marshaledYaml, 0600); err != nil {
-		return errors.Wrap(err, "Error writing to kubeloginrc file after creation")
-	}
-	log.Printf(string(marshaledYaml))
 	log.Print("File configured")
 	return nil
 }
 
-func (config *Config) newAliasConfig() error {
-	var newAliasConfig AliasConfig
-	newAliasConfig.BaseURL = serverFlag
-	newAliasConfig.Alias = aliasFlag
-	newAliasConfig.KubectlUser = userFlag
-	config.Aliases = append(config.Aliases, &newAliasConfig)
+func (config *Config) newAliasConfig(kubeloginrcAlias, loginServerURL, kubectlUser string) AliasConfig {
+	newConfig := AliasConfig{
+		BaseURL:     loginServerURL,
+		Alias:       kubeloginrcAlias,
+		KubectlUser: kubectlUser,
+	}
+	return newConfig
+}
+
+func (config *Config) appendAlias(aliasConfig AliasConfig) {
+	config.Aliases = append(config.Aliases, &aliasConfig)
+}
+
+func (config *Config) writeToFile() error {
 	marshaledYaml, err := yaml.Marshal(config)
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal new alias yaml")
+		return errors.Wrap(err, "failed to marshal alias yaml")
 	}
 	if err := ioutil.WriteFile(filenameWithPath, marshaledYaml, 0600); err != nil {
-		return errors.Wrap(err, "failed to write to kubeloginrc file with the new alias")
+		return errors.Wrap(err, "failed to write to kubeloginrc file with the alias")
 	}
 	log.Printf(string(marshaledYaml))
-	log.Print("New Alias configured")
 	return nil
 }
 
-func (config *Config) updateAlias(index int) error {
-	config.Aliases[index].KubectlUser = userFlag
-	config.Aliases[index].BaseURL = serverFlag
-	marshaledYaml, err := yaml.Marshal(config)
-	log.Printf(string(marshaledYaml))
-	if err != nil {
-		return errors.Wrap(err, "Error marshaling yaml")
-	}
-	if err := ioutil.WriteFile(filenameWithPath, marshaledYaml, 0600); err != nil {
-		return errors.Wrap(err, "Error writing to kubeloginrc file")
+func (config *Config) updateAlias(aliasConfig *AliasConfig) error {
+	aliasConfig.KubectlUser = userFlag
+	aliasConfig.BaseURL = kubeloginServerBaseURL
+	if err := config.writeToFile(); err != nil {
+		log.Fatal(err)
 	}
 	log.Print("Alias updated")
 	return nil
 }
 
-func configureFile() error {
+func configureFile(kubeloginrcAlias, loginServerURL, kubectlUser string) error {
 	var config Config
 	var aliasConfig AliasConfig
 	yamlFile, err := ioutil.ReadFile(filenameWithPath)
@@ -241,14 +240,17 @@ func configureFile() error {
 	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
 		return errors.Wrap(err, "failed to unmarshal yaml file")
 	}
-	index, ok := config.aliasSearch(aliasFlag)
+	foundAliasConfig, ok := config.aliasSearch(aliasFlag)
 	if !ok {
-		if err := config.newAliasConfig(); err != nil {
-			return err
+		newConfig := config.newAliasConfig(kubeloginrcAlias, loginServerURL, kubectlUser)
+		config.appendAlias(newConfig)
+		if err := config.writeToFile(); err != nil {
+			log.Fatal(err)
 		}
+		log.Print("New Alias configured")
 		return nil
 	}
-	if err := config.updateAlias(index); err != nil {
+	if err := config.updateAlias(foundAliasConfig); err != nil {
 		return err
 	}
 	return nil
@@ -263,9 +265,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not determine current user of this system. Err: %v", err)
 	}
-	filenameWithPath = fmt.Sprintf("%s/.kubeloginrc.yaml", user.HomeDir)
+	filenameWithPath = path.Join(user.HomeDir, "/.kubeloginrc.yaml")
 	if len(os.Args) < 3 {
-		log.Fatal("Kubelogin Usage: \n\n kubelogin config --server=server --alias=alias --kubectl_user=user \n\n kubelogin login alias \n kubelogin login --server=server --kubectl_user=user")
+		usageMessage := `Kubelogin Usage:
+        kubelogin config --server=server --alias=alias --kubectlUser=user
+        kubelogin login ALIAS
+        kubelogin login --server=baseURL --kubectlUser=user`
+		log.Fatal(usageMessage)
 	}
 	switch os.Args[1] {
 	case "login":
@@ -278,7 +284,7 @@ func main() {
 		} else {
 			loginCommmand.Parse(os.Args[2:])
 			if loginCommmand.Parsed() {
-				if serverFlag == "" {
+				if kubeloginServerBaseURL == "" {
 					log.Fatal("--server must be set!")
 				}
 				generateURLAndListenForServerResponse()
@@ -287,10 +293,10 @@ func main() {
 	case "config":
 		configCommand.Parse(os.Args[2:])
 		if configCommand.Parsed() {
-			if serverFlag == "" {
+			if kubeloginServerBaseURL == "" {
 				log.Fatal("--server must be set!")
 			}
-			if err := configureFile(); err != nil {
+			if err := configureFile(aliasFlag, kubeloginServerBaseURL, userFlag); err != nil {
 				log.Fatal(err)
 			}
 			os.Exit(0)
