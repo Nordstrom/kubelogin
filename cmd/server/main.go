@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/coreos/go-oidc"
@@ -333,6 +334,13 @@ func main() {
 	provider, err := oidc.NewProvider(ctx, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
 		log.Fatalf("error: %v\n", err.Error())
+	}
+	listenPortInt, err := strconv.Atoi(os.Getenv("LISTEN_PORT"))
+	if err != nil {
+		log.Fatalf("Error parsing port to listen on. Error: %v", err)
+	}
+	if listenPortInt < 0 || listenPortInt > 65536 {
+		log.Fatalf("LISTEN_PORT contains an invalid port. Port given: %v", listenPortInt)
 	}
 	listenPort := ":" + os.Getenv("LISTEN_PORT")
 	downloadDir := os.Getenv("DOWNLOAD_DIR")
