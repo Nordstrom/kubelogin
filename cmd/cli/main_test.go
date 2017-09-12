@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os/user"
 	"testing"
 
@@ -74,13 +75,14 @@ func TestConfigureFile(t *testing.T) {
 			log.Fatalf("Could not determine current user of this system. Err: %v", err)
 		}
 		filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
+		fakeURL, _ := url.Parse("bar")
 		Convey("should return nil if a file was able to be configured", func() {
-			err := configureFile("foo", "bar", "foobar")
+			err := configureFile("foo", fakeURL, "foobar")
 			So(err, ShouldEqual, nil)
 		})
 		Convey("should return an err if a file failed to be configured", func() {
 			filenameWithPath = ""
-			err := configureFile("foo", "bar", "foobar")
+			err := configureFile("foo", fakeURL, "foobar")
 			So(err, ShouldNotEqual, nil)
 		})
 	})
@@ -153,10 +155,11 @@ func TestUpdateAlias(t *testing.T) {
 		newAliasConfig.Alias = "test"
 		newAliasConfig.KubectlUser = "testuser"
 		config.Aliases = append(config.Aliases, &newAliasConfig)
+		fakeURL, _ := url.Parse("bar")
 		Convey("should return nil upon updating an entry in the config file", func() {
 			aliasFlag = "test"
 			userFlag = "test"
-			err := config.updateAlias(&newAliasConfig)
+			err := config.updateAlias(&newAliasConfig, fakeURL)
 			So(err, ShouldEqual, nil)
 		})
 	})

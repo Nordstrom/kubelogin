@@ -219,9 +219,9 @@ func (config *Config) writeToFile() error {
 	return nil
 }
 
-func (config *Config) updateAlias(aliasConfig *AliasConfig) error {
+func (config *Config) updateAlias(aliasConfig *AliasConfig, loginServerURL *url.URL) error {
 	aliasConfig.KubectlUser = userFlag
-	aliasConfig.BaseURL = kubeloginServerBaseURL
+	aliasConfig.BaseURL = loginServerURL.String()
 	if err := config.writeToFile(); err != nil {
 		log.Fatal(err)
 	}
@@ -229,9 +229,9 @@ func (config *Config) updateAlias(aliasConfig *AliasConfig) error {
 	return nil
 }
 
-func configureFile(kubeloginrcAlias, loginServerURL, kubectlUser string) error {
+func configureFile(kubeloginrcAlias string, loginServerURL *url.URL, kubectlUser string) error {
 	var config Config
-	aliasConfig := config.newAliasConfig(kubeloginrcAlias, loginServerURL, kubectlUser)
+	aliasConfig := config.newAliasConfig(kubeloginrcAlias, loginServerURL.String(), kubectlUser)
 	yamlFile, err := ioutil.ReadFile(filenameWithPath)
 	if err != nil {
 		if err := config.createConfig(aliasConfig); err != nil {
@@ -244,7 +244,7 @@ func configureFile(kubeloginrcAlias, loginServerURL, kubectlUser string) error {
 	}
 	foundAliasConfig, ok := config.aliasSearch(aliasFlag)
 	if !ok {
-		newConfig := config.newAliasConfig(kubeloginrcAlias, loginServerURL, kubectlUser)
+		newConfig := config.newAliasConfig(kubeloginrcAlias, loginServerURL.String(), kubectlUser)
 		config.appendAlias(newConfig)
 		if err := config.writeToFile(); err != nil {
 			log.Fatal(err)
@@ -252,7 +252,7 @@ func configureFile(kubeloginrcAlias, loginServerURL, kubectlUser string) error {
 		log.Print("New Alias configured")
 		return nil
 	}
-	if err := config.updateAlias(foundAliasConfig); err != nil {
+	if err := config.updateAlias(foundAliasConfig, loginServerURL); err != nil {
 		return err
 	}
 	return nil
@@ -294,11 +294,12 @@ func main() {
 			if kubeloginServerBaseURL == "" {
 				log.Fatal("--server must be set!")
 			}
-			_, err := url.ParseRequestURI(kubeloginServerBaseURL)
+			verifiedServerURL, err := url.ParseRequestURI(kubeloginServerBaseURL)
 			if err != nil {
 				log.Fatalf("Invalid URL given: %v | Err: %v", kubeloginServerBaseURL, err)
 			}
-			if err := configureFile(aliasFlag, kubeloginServerBaseURL, userFlag); err != nil {
+
+			if err := configureFile(aliasFlag, verifiedServerURL, userFlag); err != nil {
 				log.Fatal(err)
 			}
 			os.Exit(0)
