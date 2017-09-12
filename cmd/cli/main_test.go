@@ -149,7 +149,7 @@ func TestUpdateAlias(t *testing.T) {
 		filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
 		var config Config
 		var newAliasConfig AliasConfig
-		newAliasConfig.BaseURL = "testServer"
+		newAliasConfig.BaseURL = "bar"
 		newAliasConfig.Alias = "test"
 		newAliasConfig.KubectlUser = "testuser"
 		config.Aliases = append(config.Aliases, &newAliasConfig)

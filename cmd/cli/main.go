@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/user"
@@ -25,6 +26,10 @@ var (
 	kubeloginServerBaseURL string
 	doneChannel            chan bool
 	filenameWithPath       string
+	usageMessage           = `Kubelogin Usage:
+    kubelogin config --server=server --alias=alias --kubectlUser=user
+    kubelogin login ALIAS
+    kubelogin login --server=baseURL --kubectlUser=user`
 )
 
 //AliasConfig contains the structure of what's in the config file
@@ -181,9 +186,6 @@ func (config *Config) createConfig(aliasConfig AliasConfig) error {
 	}
 	log.Print("Config file created, setting config values...")
 	config.Aliases = make([]*AliasConfig, 0)
-	aliasConfig.BaseURL = kubeloginServerBaseURL
-	aliasConfig.Alias = aliasFlag
-	aliasConfig.KubectlUser = userFlag
 	config.appendAlias(aliasConfig)
 	if err := config.writeToFile(); err != nil {
 		log.Fatal(err)
@@ -229,7 +231,7 @@ func (config *Config) updateAlias(aliasConfig *AliasConfig) error {
 
 func configureFile(kubeloginrcAlias, loginServerURL, kubectlUser string) error {
 	var config Config
-	var aliasConfig AliasConfig
+	aliasConfig := config.newAliasConfig(kubeloginrcAlias, loginServerURL, kubectlUser)
 	yamlFile, err := ioutil.ReadFile(filenameWithPath)
 	if err != nil {
 		if err := config.createConfig(aliasConfig); err != nil {
@@ -267,10 +269,6 @@ func main() {
 	}
 	filenameWithPath = path.Join(user.HomeDir, "/.kubeloginrc.yaml")
 	if len(os.Args) < 3 {
-		usageMessage := `Kubelogin Usage:
-        kubelogin config --server=server --alias=alias --kubectlUser=user
-        kubelogin login ALIAS
-        kubelogin login --server=baseURL --kubectlUser=user`
 		log.Fatal(usageMessage)
 	}
 	switch os.Args[1] {
@@ -296,12 +294,16 @@ func main() {
 			if kubeloginServerBaseURL == "" {
 				log.Fatal("--server must be set!")
 			}
+			_, err := url.ParseRequestURI(kubeloginServerBaseURL)
+			if err != nil {
+				log.Fatalf("Invalid URL given: %v | Err: %v", kubeloginServerBaseURL, err)
+			}
 			if err := configureFile(aliasFlag, kubeloginServerBaseURL, userFlag); err != nil {
 				log.Fatal(err)
 			}
 			os.Exit(0)
 		}
 	default:
-		log.Fatal("Kubelogin Usage: \n\n kubelogin config --server=server --alias=alias --kubectl_user=user \n\n kubelogin login alias \n kubelogin login --server=server --kubectl_user=user")
+		log.Fatal(usageMessage)
 	}
 }
