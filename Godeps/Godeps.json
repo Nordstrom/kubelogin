@@ -2,6 +2,9 @@
 	"ImportPath": "github.com/nordstrom/kubelogin",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/beorn7/perks/quantile",
@@ -58,6 +61,11 @@
 			"ImportPath": "github.com/matttproud/golang_protobuf_extensions/pbutil",
 			"Comment": "v1.0.0-2-gc12348c",
 			"Rev": "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+		},
+		{
+			"ImportPath": "github.com/pkg/errors",
+			"Comment": "v0.8.0-5-gc605e28",
+			"Rev": "c605e284fe17294bda444b34710735b29d1a9d90"
 		},
 		{
 			"ImportPath": "github.com/pquerna/cachecontrol",
@@ -157,6 +165,10 @@
 			"ImportPath": "gopkg.in/square/go-jose.v2/json",
 			"Comment": "v2.1.2",
 			"Rev": "b25e6cab129e4a54675b42ea49d38e9c33ade9e6"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b"
 		}
 	]
 }

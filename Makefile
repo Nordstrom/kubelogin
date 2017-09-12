@@ -1,4 +1,4 @@
-image_tag := 1.0-g
+image_tag := 1.0-h
 image_name := quay.io/nordstrom/kubelogin
 
 build build/download/mac build/download/linux build/download/windows:
@@ -14,15 +14,13 @@ build/kubelogin : cmd/server/*.go | build
 	    go build -v -o /go/bin/kubelogin \
 	    github.com/nordstrom/kubelogin/cmd/server/
 
-# Build your golang app for the target OS
-# GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(image_tag)"
-build/kubelogin-cli-% : cmd/cli/*.go
+build/kubelogin-cli-% : cmd/cli/*.go | build
 	docker run -it \
 	  -v $(PWD):/go/src/github.com/nordstrom/kubelogin \
 	  -v $(PWD)/build:/go/bin \
 	  -e GOARCH=amd64 \
 	  -e GOOS=$* \
-	  golang:1.7.4 \
+	  golang:1.9.0 \
 	  go build -v -o /go/bin/kubelogin-cli-$* \
 	    github.com/nordstrom/kubelogin/cmd/cli/ \
 
@@ -41,10 +39,10 @@ build/download/windows/kubelogin-cli-windows.zip: build/download/windows/kubelog
 	cd build/download/windows && zip -r -X kubelogin-cli-windows.zip kubelogin.exe
 
 # Build golang app for local OS
-kubelogin: cmd/server/*.go
+kubelogin: cmd/server/*.go | build
 	go build -o kubelogin
 
-kubeloginCLI: cmd/cli/*.go
+kubeloginCLI: cmd/cli/*.go | build
 	go build -o kubeloginCLI
 
 .PHONY: test_app
