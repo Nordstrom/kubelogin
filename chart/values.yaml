@@ -1,0 +1,46 @@
+kubelogin:
+  image:
+    name: quay.io/nordstrom/kubelogin
+    tag: 0.0.1
+    pullPolicy: IfNotPresent
+
+  oidcProviderURL: ""
+  redirectURL: ""
+  listenPort: ""
+  groupsClaim: ""
+  userClaim: ""
+  secrets:
+    oidc:
+      name: ""
+      clientIDKey: ""
+      clientSecretKey: ""
+  ingress:
+    annotations:
+      ingress.kubernetes.io/redirect-ssl: "true"
+    # TLS and host configuration for the Ingress is handled in the values file
+    # these values are examples and will not work.
+    # In order to use kubelogin with an Ingress controller, please inspect these values
+    # and provide overrides for everything below (e.g., via a Helm values file)
+    tls:
+    - hosts:
+      - "kubelogin.example.com"
+      secretName: kubelogin.example.com.tls
+    rules:
+    - host: "kubelogin.example.com"
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: kubelogin-service
+              servicePort: 80
+redis:
+  address: ""
+  ttl: 10
+  # The kubelogin chart assumes a secret will be present in the target namespace
+  # that contains a password for accessing Redis. 
+  # If Redis is installed via Helm into the same namespace as Kubelogin, this
+  # could be the secret that Helm created with the Redis password.
+  # These values (secret name and key) are examples
+  secret:
+    name: redis-auth
+    passwordKey: redis-password

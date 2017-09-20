@@ -1,0 +1,76 @@
+apiVersion: {{ template "deployment.apiVersion" . }}
+kind: Deployment
+metadata:
+  name: "{{ template "kubelogin.fullname" . }}"
+  labels:
+    app: {{ template "kubelogin.fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  replicas: {{.Values.kubelogin.replicas}}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  revisionHistoryLimit: 5
+  template:
+    metadata:
+      labels:
+        app: {{ template "kubelogin.fullname" . }}
+    spec:
+      containers:
+      - name: kubelogin
+        image: "{{ .Values.kubelogin.image.name}}:{{ .Values.kubelogin.image.tag}}"
+        imagePullPolicy: {{ .Values.kubelogin.image.pullPolicy}}
+        env:
+        - name: GROUPS_CLAIM
+          value: "{{ .Values.kubelogin.groupsClaim}}"
+        - name: USER_CLAIM
+          value: "{{ .Values.kubelogin.userClaim}}"
+        - name: LISTEN_PORT
+          value: "{{ .Values.kubelogin.listenPort}}"
+        - name: OIDC_PROVIDER_URL
+          value: "{{ .Values.kubelogin.oidcProviderURL}}"
+        - name: REDIRECT_URL
+          value: "{{ .Values.kubelogin.redirectURL}}"
+        - name: REDIS_ADDR
+          value: "{{required "A valid .Values.redis.address entry required!" .Values.redis.address}}"
+        - name: REDIS_TTL
+          value: "{{ .Values.redis.ttl}}"
+        - name: CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: "{{required "A valid .Values.kubelogin.secrets.oidc.name entry required!" .Values.kubelogin.secrets.oidc.name}}"
+              key: "{{required "A valid .Values.kubelogin.secrets.oidc.clientIDKey entry required!" .Values.kubelogin.secrets.oidc.clientIDKey}}"
+        - name: CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: "{{required "A valid .Values.kubelogin.secrets.oidc.name entry required!" .Values.kubelogin.secrets.oidc.name}}"
+              key: "{{required "A valid .Values.kubelogin.secrets.oidc.clientSecretKey entry required!" .Values.kubelogin.secrets.oidc.clientSecretKey}}"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: "{{required "A valid .Values.redis.secret.name entry required!" .Values.redis.secret.name}}"
+              key: "{{required "A valid .Values.redis.secret.passwordKey entry required!" .Values.redis.secret.passwordKey}}"
+        ports:
+        - name: http
+          containerPort: {{ .Values.kubelogin.listenPort }}
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          failureThreshold: 3
+          successThreshold: 1
+          initialDelaySeconds: 15
+          timeoutSeconds: 2
+        resources:
+          requests:
+            cpu: 500m
+            memory: 100Mi
+          limits:
+            cpu: "1"
+            memory: 250Mi
