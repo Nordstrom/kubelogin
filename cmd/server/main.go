@@ -272,9 +272,9 @@ func getMux(app app, downloadDir string) *http.ServeMux {
 	return newMux
 }
 
-func setRedisValues(redisURL string, redisPassword string, redisTTL time.Duration) *redisValues {
+func setRedisValues(redisAddress string, redisPassword string, redisTTL time.Duration) *redisValues {
 	return &redisValues{
-		address:    redisURL,
+		address:    redisAddress,
 		password:   redisPassword,
 		timeToLive: redisTTL,
 	}
