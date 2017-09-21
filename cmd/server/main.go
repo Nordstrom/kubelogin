@@ -330,6 +330,12 @@ func main() {
 	if os.Getenv("REDIRECT_URL") == "" {
 		log.Fatal("REDIRECT_URL not set!")
 	}
+	if os.Getenv("HTTPS_CERT_PATH") == "" {
+		log.Fatal("HTTPS_CERT_PATH not set!")
+	}
+	if os.Getenv("HTTPS_KEY_PATH") == "" {
+		log.Fatal("HTTPS_KEY_PATH not set!")
+	}
 	ctx := oidc.ClientContext(context.Background(), http.DefaultClient)
 	provider, err := oidc.NewProvider(ctx, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
@@ -370,7 +376,9 @@ func main() {
 		log.Fatalf("Error communicating with Redis: %v", err)
 	}
 	mux := getMux(app, downloadDir)
-	if err := http.ListenAndServe(listenPort, mux); err != nil {
+	crt := os.Getenv("HTTPS_CERT_PATH")
+	key := os.Getenv("HTTPS_KEY_PATH")
+	if err := http.ListenAndServeTLS(listenPort, crt, key, mux); err != nil {
 		log.Fatalf("Failed to listen on port: %s | Error: %v", listenPort, err)
 	}
 }

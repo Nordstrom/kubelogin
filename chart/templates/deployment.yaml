@@ -20,11 +20,25 @@ spec:
       labels:
         app: {{ template "kubelogin.fullname" . }}
     spec:
+      volumes:
+        - name: TLS_SECRET
+          secret:
+            secretName: "{{ .Values.kubelogin.tls.secretName}}"
+            items:
+              - key: "tls.crt"
+                path: "{{ .Values.kubelogin.tls.crtPath}}"
+              - key: "tls.key"
+                path: "{{ .Values.kubelogin.tls.keyPath}}"
+
       containers:
       - name: kubelogin
         image: "{{ .Values.kubelogin.image.name}}:{{ .Values.kubelogin.image.tag}}"
         imagePullPolicy: {{ .Values.kubelogin.image.pullPolicy}}
         env:
+        - name: HTTPS_CERT_PATH
+          value: "{{ .Values.kubelogin.tls.crtPath}}"
+        - name: HTTPS_KEY_PATH
+          value: "{{ .Values.kubelogin.tls.keyPath}}"
         - name: GROUPS_CLAIM
           value: "{{ .Values.kubelogin.groupsClaim}}"
         - name: USER_CLAIM
@@ -61,8 +75,8 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 8080
-            scheme: HTTP
+            port: 443
+            scheme: HTTPS
           failureThreshold: 3
           successThreshold: 1
           initialDelaySeconds: 15
