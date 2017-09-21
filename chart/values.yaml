@@ -14,9 +14,13 @@ kubelogin:
       name: ""
       clientIDKey: ""
       clientSecretKey: ""
+  # service:
+  #   annotations:
+  #     external-dns.alpha.kubernetes.io/hostname: kubelogin.example.com.
   ingress:
-    annotations:
-      ingress.kubernetes.io/redirect-ssl: "true"
+    # annotations:
+    #   ingress.kubernetes.io/redirect-ssl: "true"
+
     # TLS and host configuration for the Ingress is handled in the values file
     # these values are examples and will not work.
     # In order to use kubelogin with an Ingress controller, please inspect these values
@@ -35,7 +39,7 @@ kubelogin:
               servicePort: 80
 redis:
   address: ""
-  ttl: 10
+  ttl: "10s"
   # The kubelogin chart assumes a secret will be present in the target namespace
   # that contains a password for accessing Redis. 
   # If Redis is installed via Helm into the same namespace as Kubelogin, this
