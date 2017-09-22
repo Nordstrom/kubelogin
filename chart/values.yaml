@@ -10,9 +10,7 @@ kubelogin:
   groupsClaim: ""
   userClaim: ""
   tls:
-      secretName: "<YOUR TLS SECRET NAME>"
-      crtPath: "/etc/ssl/kubelogin/tls.crt"
-      keyPath: "/etc/ssl/kubelogin/tls.key"
+    secretName: "<YOUR TLS SECRET NAME>"
   secrets:
     oidc:
       name: ""
