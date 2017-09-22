@@ -1,4 +1,4 @@
-image_tag := 0.0.1
+image_tag := 0.0.2
 image_name := quay.io/nordstrom/kubelogin
 
 build build/download/mac build/download/linux build/download/windows:
