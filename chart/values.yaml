@@ -1,7 +1,7 @@
 kubelogin:
   image:
     name: quay.io/nordstrom/kubelogin
-    tag: 0.0.1
+    tag: v0.0.2
     pullPolicy: IfNotPresent
 
   oidcProviderURL: ""
