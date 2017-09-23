@@ -1,0 +1,20 @@
+{{- if .Values.kubelogin.ingress.enabled }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template "kubelogin.fullname" . }}
+  labels:
+    app: {{ template "kubelogin.fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+{{- if .Values.kubelogin.ingress.annotations }}
+  annotations:
+{{ toYaml .Values.kubelogin.ingress.annotations | indent 4 }}
+{{- end }}
+spec:
+  tls:
+{{ toYaml .Values.kubelogin.ingress.tls | indent 4 }}
+  rules:
+{{ toYaml .Values.kubelogin.ingress.rules | indent 4 }}
+{{- end }}

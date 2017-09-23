@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "kubelogin.fullname" . }}
+  labels:
+    app: {{ template "kubelogin.fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+{{- if .Values.kubelogin.service.annotations }}
+  annotations:
+{{ toYaml .Values.kubelogin.service.annotations | indent 4 }}
+{{- end }}
+spec:
+  type: LoadBalancer
+  ports:
+    - name: https
+      port: 443
+      targetPort: {{.Values.kubelogin.listenPort}}
+      protocol: TCP
+  selector:
+    app: {{ template "kubelogin.fullname" . }}
