@@ -13,12 +13,12 @@ kubelogin:
     secretName: "<YOUR TLS SECRET NAME>"
   secrets:
     oidc:
-      name: ""
-      clientIDKey: ""
-      clientSecretKey: ""
-  # service:
-  #   annotations:
-  #     external-dns.alpha.kubernetes.io/hostname: kubelogin.example.com.
+      name: "example-oidc-secret"
+      clientIDKey: "client-id"
+      clientSecretKey: "client-secret"
+  service:
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: kubelogin.example.com.
   ingress:
     # annotations:
     #   ingress.kubernetes.io/redirect-ssl: "true"
@@ -40,7 +40,7 @@ kubelogin:
               serviceName: kubelogin-service
               servicePort: 80
 redis:
-  address: ""
+  address: "example-redis-address:6379"
   ttl: "10s"
   # The kubelogin chart assumes a secret will be present in the target namespace
   # that contains a password for accessing Redis. 
