@@ -6,7 +6,7 @@ GITHUB_INDIVIDUAL_RELEASE_ASSET_URL := https://uploads.github.com/repos/$(GITHUB
 GITHUB_REPO_HOST_AND_PATH := github.com/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)
 IMAGE_NAME := quay.io/nordstrom/kubelogin
 BUILD := build
-CURRENT_TAG := v0.0.3-pre
+CURRENT_TAG := v0.0.3
 
 .PHONY: image/build image/push
 .PHONY: release/tag/local release/tag/push
@@ -19,8 +19,10 @@ image/push: image/build
 image/build: $(BUILD)/cli/mac/kubelogin-cli-darwin-$(CURRENT_TAG).tar.gz
 image/build: $(BUILD)/cli/linux/kubelogin-cli-linux-$(CURRENT_TAG).tar.gz
 image/build: $(BUILD)/cli/windows/kubelogin-cli-windows-$(CURRENT_TAG).zip
-image/build: $(BUILD)/Dockerfile $(BUILD)/kubelogin
+image/build: $(BUILD)/Dockerfile $(BUILD)/server/kubelogin
 	docker build --build-arg CURRENT_TAG=$(CURRENT_TAG) --tag $(IMAGE_NAME):$(CURRENT_TAG) $(<D)
+
+release/github: release/tag/local release/tag/push release/github/create release/assets
 
 release/tag/local:
 	git tag $(CURRENT_TAG)
@@ -28,7 +30,6 @@ release/tag/local:
 release/tag/push:
 	git push --tags
 
-release/github: release/github/create release/assets
 release/github/create: $(BUILD)/github-release-$(CURRENT_TAG)-response-body.json
 release/assets: release/assets/darwin release/assets/linux release/assets/windows
 
@@ -83,7 +84,7 @@ $(BUILD)/cli/mac/kubelogin $(BUILD)/cli/linux/kubelogin $(BUILD)/cli/windows/kub
 
 # Build your golang app for the target OS
 # GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.Version=$(CURRENT_TAG)"
-$(BUILD)/kubelogin : cmd/server/*.go | build
+$(BUILD)/server/kubelogin : cmd/server/*.go | build
 	docker run -it \
 	  -v $(PWD):/go/src/$(GITHUB_REPO_HOST_AND_PATH) \
 	  -v $(PWD)/build:/go/bin \
@@ -103,10 +104,10 @@ $(BUILD)/kubelogin-cli-% : cmd/cli/*.go | build
 
 # Build golang app for local OS
 kubelogin: cmd/server/*.go | build
-	go build -o kubelogin
+	go build -o kubelogin ./cmd/server
 
 kubeloginCLI: cmd/cli/*.go | build
-	go build -o kubeloginCLI
+	go build -o kubeloginCLI ./cmd/cli
 
 .PHONY: test_app
 test_app:
