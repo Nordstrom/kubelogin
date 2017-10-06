@@ -1,16 +1,16 @@
-# Kubelogin
+# kubelogin
 
-Repo for the kubelogin Server and CLI
-
+Repo for kubelogin Server and CLI.
 
 # CLI
 
-
 ## Usage
-The intended usage of this CLI is to communicate with the kubelogin server to set the token field of the kubectl config file. The kubernetes API server will use this token for OIDC authentication.
 
-The CLI accepts two verbs:
-**login** and **config**
+The intended usage of this CLI is to communicate with the kubelogin server to
+set the token field of the kubectl config file. The kubernetes API server will
+use this token for OIDC authentication.
+
+The CLI accepts two verbs: **`login`** and **`config`**
 
 How to use these verbs:
 
@@ -22,46 +22,47 @@ How to use these verbs:
 
 ## Pre-Deploy Action & Configuration
 
-1. Download binary file from the server and move it into your bin directory. Speak
-with your friendly neighborhood Kubernetes team to get the link :)
+1. Download binary file from the server and move it into your bin directory.
+Speak with your friendly neighborhood Kubernetes team to get the link :)
 
 ## Post-Deploy Action & Configuration
 
-1. For first time use or a username change, you'll need to run the following: `kubectl
-config set-context CLUSTER_ID --user=USER` where USER is what you defined `kubectl-user`
-as when running `kubelogin config`. If you did not set `kubectl-user` when running
-config, it will default to `kubelogin_user`.
+1. For first time use or a username change, you'll need to run the following:
+`kubectl config set-context CLUSTER_ID --user=USER` where USER is what you
+defined `kubectl-user` as when running `kubelogin config`. If you did not set
+`kubectl-user` when running config, it will default to `kubelogin_user`.
 
 ### Note
 
 If you experience timeout issues with the CLI, check your proxy settings.
 
-
 # Server
-
 
 ## Usage
 
-This Server is to be deployed on kubernetes and will act as a way of retrieving a JWT from an OIDC provider and sending it back to the client running the kubelogin CLI code.
+The kubelogin server acts as a way of retrieving a JWT from an OIDC provider
+and sending it back to the kubelogin CLI client running locally.
 
-- Prometheus metrics are handled through the /metrics endpoint
+- Prometheus metrics are handled through the `/metrics` endpoint
 
-- A health check is provided through the /health endpoint
+- A health check is provided through the `/health` endpoint
 
-- The initial login to the server that redirects to the specified OIDC provider is handled through the /login
+- The initial login to the server that redirects to the specified OIDC
+  provider is handled through the `/login` endpoint
+
+- The server listens for a response from the OIDC provider on the `/callback`
   endpoint
 
-- The server listens for a response from the OIDC provider on the /callback endpoint
+- The server listens for the custom token for JWT exchange request on the
+  `/exchange` endpoint
 
-- The server listens for the custom token for JWT exchange request on the /exchange endpoint
+- The server has a static site handled at root giving a brief description of
+  the app as well as providing download links to the CLI
 
-- The server has a static site handled at root giving a brief description of the app as well as providing
-  download links to the CLI
+- Download links are provided through the `/download/` path and use the Docker
+  image environment to search for the files
 
-- Download links are provided through the /download/ path and use the Docker image environment to search for
-  the files
-
-- Files are saved as .zip for windows and .tar.gz for mac/linux
+- Files are saved as `.tar.gz` for macOS & Linux and `.zip` for Windows
 
 ## Pre-Deploy Action & Configuration
 
@@ -81,11 +82,20 @@ The following are **REQUIRED** to be set up in the Kubernetes environment
 | **REDIS_TTL** | time to live for JWTs in Redis. Accepts a duration string (e.g., 1m, 2s). Defaults to 10s |
 | **DOWNLOAD_DIR** | this is the overall directory to use when searching for the binary files. For example: `kubelogin/assets/`. Defaults to `/download` if not set |
 
-Note about the download directory: We have standardized on each download file residing inside a folder labeled as the respective operating system i.e., /mac /windows and /linux which are contained in an overarching folder labeled /download which resides in the root of the Docker image. The name of the download folder can change and the path to this folder can change as well. However /mac /windows and /linux will not change and if you put the download files in different folders, the links will not work unless you change the html in the code; but these changes will remain local to your machine and your deployment and will not be merged into our master branch.
+Note about the download directory: We have standardized on each download file
+residing inside a folder labeled as the respective operating system i.e.,
+`/mac`, `/windows`, and `/linux` which are contained in an overarching folder
+labeled `/download` which resides in the root of the Docker image. The name of
+the download folder can change and the path to this folder can change as well.
+However `/mac`, `/windows`, and `/linux` will not change and if you put the
+download files in different folders, the links will not work unless you change
+the HTML in the kubelogin server code; but these changes will remain local to
+your deployment (or fork) and will not be merged into our `master` branch.
 
 ## Deploy
 
-- Deployment should be handled through Helm charts. A Makefile will help with setting the environment
-  variables that are not secrets or Redis based
+- Deployment should be handled through Helm charts. A Makefile will help with
+  setting the environment variables that are not secrets or Redis based
 
-- Helm documentation: https://github.com/kubernetes/helm/blob/master/docs/index.md
+- Helm documentation:
+  https://github.com/kubernetes/helm/blob/master/docs/index.md

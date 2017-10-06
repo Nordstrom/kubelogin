@@ -1,16 +1,18 @@
 GITHUB_REPO_OWNER := Nordstrom
 GITHUB_REPO_NAME := kubelogin
 GITHUB_RELEASE_PRERELASE_BOOLEAN := true
-GITHUB_RELEASES_URL := https://api.github.com/repos/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)/releases
+GITHUB_RELEASES_UI_URL := https://github.com/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)/releases
+GITHUB_RELEASES_API_URL := https://api.github.com/repos/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)/releases
 GITHUB_INDIVIDUAL_RELEASE_ASSET_URL := https://uploads.github.com/repos/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)/releases
 GITHUB_REPO_HOST_AND_PATH := github.com/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)
 IMAGE_NAME := quay.io/nordstrom/kubelogin
 BUILD := build
-CURRENT_TAG := v0.0.3
+CURRENT_TAG := v0.0.4-pre.1
 
 .PHONY: image/build image/push
 .PHONY: release/tag/local release/tag/push
-.PHONY: release/github/create release/github/update
+.PHONY: release/github/draft release/github/publish
+.PHONY: release/github/draft/create
 .PHONY: clean
 
 image/push: image/build
@@ -22,15 +24,25 @@ image/build: $(BUILD)/cli/windows/kubelogin-cli-windows-$(CURRENT_TAG).zip
 image/build: $(BUILD)/Dockerfile $(BUILD)/server/kubelogin
 	docker build --build-arg CURRENT_TAG=$(CURRENT_TAG) --tag $(IMAGE_NAME):$(CURRENT_TAG) $(<D)
 
-release/github: release/tag/local release/tag/push release/github/create release/assets
+release/github/draft: release/tag/local release/tag/push release/github/draft/create release/assets $(BUILD)/github-release-$(CURRENT_TAG)-id
+	@echo "\n\nPlease inspect the release and run make release/github/publish if it looks good"
+	open "$(GITHUB_RELEASES_UI_URL)/$(CURRENT_TAG)"
+
+release/github/publish: $(BUILD)/github-release-$(CURRENT_TAG)-published-response-body.json
+
+$(BUILD)/github-release-$(CURRENT_TAG)-published-response-body.json: $(BUILD)/github-release-$(CURRENT_TAG)-published-request-body.json $(BUILD)/github-release-$(CURRENT_TAG)-id
+	curl -u $(GITHUB_USERNAME) -XPATCH -d@"$<" "$(GITHUB_RELEASES_API_URL)/$$(cat $(BUILD)/github-release-$(CURRENT_TAG)-id)"
+
+$(BUILD)/github-release-$(CURRENT_TAG)-published-request-body.json: $(BUILD)/github-release-$(CURRENT_TAG)-draft-request-body.json
+	jq '.draft = false' "$<" > "$@"
 
 release/tag/local:
-	git tag $(CURRENT_TAG)
+	-git tag $(CURRENT_TAG)
 
 release/tag/push:
 	git push --tags
 
-release/github/create: $(BUILD)/github-release-$(CURRENT_TAG)-response-body.json
+release/github/draft/create: $(BUILD)/github-release-$(CURRENT_TAG)-response-body.json
 release/assets: release/assets/darwin release/assets/linux release/assets/windows
 
 release/assets/darwin: $(BUILD)/cli/mac/kubelogin-cli-darwin-$(CURRENT_TAG).tar.gz $(BUILD)/github-release-$(CURRENT_TAG)-id
@@ -45,20 +57,20 @@ release/assets/darwin release/assets/linux release/assets/windows: |
 
 # find an existing, non-draft GH release or create one for the tag $(CURRENT_TAG)
 $(BUILD)/github-release-$(CURRENT_TAG)-response-body.json: | $(BUILD)
-	curl -s "$(GITHUB_RELEASES_URL)/tags/$(CURRENT_TAG)" > "$@"
-	@if [ -z "$$(cat '$@')" ]; then \
+	curl -s "$(GITHUB_RELEASES_API_URL)/tags/$(CURRENT_TAG)" > "$@"
+	if [[ $$(jq -e 'has("id") | not' "$@") ]]; then \
 	    make "$(BUILD)/github-release-$(CURRENT_TAG)-response-body-new.json"; \
 	    mv "$(BUILD)/github-release-$(CURRENT_TAG)-response-body-new.json" "$@"; \
 	fi
 
-$(BUILD)/github-release-$(CURRENT_TAG)-response-body-new.json: $(BUILD)/github-release-$(CURRENT_TAG)-request-body.json
+$(BUILD)/github-release-$(CURRENT_TAG)-response-body-new.json: $(BUILD)/github-release-$(CURRENT_TAG)-draft-request-body.json
 	@if [ -z "$(GITHUB_USERNAME)" ]; then echo "Please set GITHUB_USERNAME"; exit 1; fi
-	curl -u $(GITHUB_USERNAME) -XPOST -d@"$<" "$(GITHUB_RELEASES_URL)" > "$@"
+	curl -u $(GITHUB_USERNAME) -XPOST -d@"$<" "$(GITHUB_RELEASES_API_URL)" > "$@"
 
 $(BUILD)/github-release-$(CURRENT_TAG)-id: $(BUILD)/github-release-$(CURRENT_TAG)-response-body.json
 	jq -r '.id' "$<" > "$@"
 
-$(BUILD)/github-release-$(CURRENT_TAG)-request-body.json: Makefile | $(BUILD)
+$(BUILD)/github-release-$(CURRENT_TAG)-draft-request-body.json: Makefile | $(BUILD)
 	jq -n '{ \
 	  tag_name: "$(CURRENT_TAG)", \
 	  target_commitish: "master", \
