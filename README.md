@@ -16,18 +16,24 @@ How to use these verbs:
 
 | Verb | Flags | Description | Example |
 | :--- | :--- | :--- | :--- |
-| `config` | alias, server, kubectlUser | If no alias flag is set, the alias is set as default. If kubectlUser isn't set, it defaults to kubelogin_user. Server **MUST** be set. If there is no existing config file, this verb will create one for you in your root directory and put the initial values in the file for you. If you give an alias that already exists, it will update the info of the given alias. If you give a new alias, it will add that to the existing list of aliases | `kubelogin config --alias=foo --server=bar --kubectlUser=foobar` |
+| `config` | `alias`, `server-url`, `kubectl-user` | If no alias flag is set, the alias is set as default. If kubectl-user isn't set, it defaults to kubelogin_user. Server **MUST** be set. If there is no existing config file, this verb will create one for you in your root directory and put the initial values in the file for you. If you give an alias that already exists, it will update the info of the given alias. If you give a new alias, it will add that to the existing list of aliases | `kubelogin config --alias=foo --server-url=bar --kubectl-user=foobar` |
 | `login ALIAS` | no flags | this command will take the alias given and search for it in the config file. If no value is found, it will error out and ask you to check spelling or create a config file. | `kubelogin login foo` |
-| `login` | server, kubectlUser | if you do not wish to create a config file and only intend on logging in just once, you can set the server directly using the --server flag which **MUST** be set; kubectlUser will still default to kubelogin_user if not supplied. The alias flag is not accepted here | `kubelogin login --server=foo --kubectlUser=bar ` |
+| `login` | `server-url`, `kubectl-user` | if you do not wish to create a config file and only intend on logging in just once, you can set the server URL directly using the `--server-url` flag which **MUST** be set; kubectl-user will still default to kubelogin_user if not supplied. The alias flag is not accepted here | `kubelogin login --server-url=foo --kubectl-user=bar ` |
 
 ## Pre-Deploy Action & Configuration
-1. Download binary file from the server and move it into your bin directory. Speak with your friendly neighborhood Kubernetes team to get the link :)
 
+1. Download binary file from the server and move it into your bin directory. Speak
+with your friendly neighborhood Kubernetes team to get the link :)
 
 ## Post-Deploy Action & Configuration
-1. For first time use or a username change, you'll need to run the following: `kubectl config set-context CLUSTER_ID --user=USER` where USER is what you defined kubectlUser as when running `kubelogin config`. If you did not set kubectlUser when running config, it will default to kubelogin_user.
+
+1. For first time use or a username change, you'll need to run the following: `kubectl
+config set-context CLUSTER_ID --user=USER` where USER is what you defined `kubectl-user`
+as when running `kubelogin config`. If you did not set `kubectl-user` when running
+config, it will default to `kubelogin_user`.
 
 ### Note
+
 If you experience timeout issues with the CLI, check your proxy settings.
 
 
@@ -35,25 +41,30 @@ If you experience timeout issues with the CLI, check your proxy settings.
 
 
 ## Usage
+
 This Server is to be deployed on kubernetes and will act as a way of retrieving a JWT from an OIDC provider and sending it back to the client running the kubelogin CLI code.
 
 - Prometheus metrics are handled through the /metrics endpoint
 
 - A health check is provided through the /health endpoint
 
-- The initial login to the server that redirects to the specified OIDC provider is handled through the /login endpoint
+- The initial login to the server that redirects to the specified OIDC provider is handled through the /login
+  endpoint
 
 - The server listens for a response from the OIDC provider on the /callback endpoint
 
 - The server listens for the custom token for JWT exchange request on the /exchange endpoint
 
-- The server has a static site handled at root giving a brief description of the app as well as providing download links to the CLI
+- The server has a static site handled at root giving a brief description of the app as well as providing
+  download links to the CLI
 
-- Download links are provided through the /download/ path and use the Docker image environment to search for the files
+- Download links are provided through the /download/ path and use the Docker image environment to search for
+  the files
 
 - Files are saved as .zip for windows and .tar.gz for mac/linux
 
 ## Pre-Deploy Action & Configuration
+
 The following are **REQUIRED** to be set up in the Kubernetes environment
 
 | Environment Variables | Description |
@@ -73,5 +84,8 @@ The following are **REQUIRED** to be set up in the Kubernetes environment
 Note about the download directory: We have standardized on each download file residing inside a folder labeled as the respective operating system i.e., /mac /windows and /linux which are contained in an overarching folder labeled /download which resides in the root of the Docker image. The name of the download folder can change and the path to this folder can change as well. However /mac /windows and /linux will not change and if you put the download files in different folders, the links will not work unless you change the html in the code; but these changes will remain local to your machine and your deployment and will not be merged into our master branch.
 
 ## Deploy
-- Deployment should be handled through Helm charts. A Makefile will help with setting the environment variables that are not secrets or Redis based
+
+- Deployment should be handled through Helm charts. A Makefile will help with setting the environment
+  variables that are not secrets or Redis based
+
 - Helm documentation: https://github.com/kubernetes/helm/blob/master/docs/index.md
