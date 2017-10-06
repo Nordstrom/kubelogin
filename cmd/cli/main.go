@@ -33,15 +33,21 @@ var (
 	kubeloginServerBaseURL string
 	doneChannel            chan bool
 	usageMessage           = `Kubelogin Usage:
-    kubelogin config --server=server --alias=alias --kubectlUser=user
-    kubelogin login ALIAS
-    kubelogin login --server=baseURL --kubectlUser=user`
+  
+  One time login:
+    kubelogin login --server-url=https://kubelogin.example.com --kubectl-user=user
+    
+  Configure an alias (shortcut):
+    kubelogin config --alias=example --server-url=https://kubelogin.example.com --kubectl-user=example_oidc
+    
+  Use an alias:
+    kubelogin login example`
 )
 
 //AliasConfig contains the structure of what's in the config file
 type AliasConfig struct {
 	Alias       string `yaml:"alias"`
-	BaseURL     string `yaml:"base-url"`
+	BaseURL     string `yaml:"server-url"`
 	KubectlUser string `yaml:"kubectl-user"`
 }
 
@@ -77,7 +83,7 @@ func (app *app) makeExchange(token string) error {
 		return err
 	}
 	if res.StatusCode != http.StatusOK {
-		log.Fatalf("Failed to retrieve token from server. Please try again or contact your administrator")
+		log.Fatalf("Failed to retrieve token from kubelogin server. Please try again or contact your administrator")
 	}
 	defer res.Body.Close()
 	jwt, err := ioutil.ReadAll(res.Body)
@@ -154,8 +160,8 @@ func setFlags(command *flag.FlagSet, loginCmd bool) {
 	if !loginCmd {
 		command.StringVar(&aliasFlag, "alias", "default", "alias name in the config file, used for an easy login")
 	}
-	command.StringVar(&userFlag, "kubectlUser", "kubelogin_user", "username used in kubectl config")
-	command.StringVar(&kubeloginServerBaseURL, "server", "", "base URL of the server, correct paths added in other functions")
+	command.StringVar(&userFlag, "kubectl-user", "kubelogin_user", "in kubectl config, username used to store credentials")
+	command.StringVar(&kubeloginServerBaseURL, "server-url", "", "base URL of the kubelogin server, ex: https://kubelogin.example.com")
 }
 func (app *app) getConfigSettings(alias string) error {
 	yamlFile, err := ioutil.ReadFile(app.filenameWithPath)
@@ -282,7 +288,7 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "login":
-		if !(strings.Contains(os.Args[2], "--") || strings.Contains(os.Args[2], "-")) {
+		if !strings.HasPrefix(os.Args[2], "--") {
 			//use alias to extract needed information
 			if err := app.getConfigSettings(os.Args[2]); err != nil {
 				log.Fatal(err)
@@ -292,7 +298,7 @@ func main() {
 			loginCommmand.Parse(os.Args[2:])
 			if loginCommmand.Parsed() {
 				if kubeloginServerBaseURL == "" {
-					log.Fatal("--server must be set!")
+					log.Fatal("--server-url must be set!")
 				}
 				app.kubectlUser = userFlag
 				app.kubeloginServer = kubeloginServerBaseURL
@@ -303,7 +309,7 @@ func main() {
 		configCommand.Parse(os.Args[2:])
 		if configCommand.Parsed() {
 			if kubeloginServerBaseURL == "" {
-				log.Fatal("--server must be set!")
+				log.Fatal("--server-url must be set!")
 			}
 			verifiedServerURL, err := url.ParseRequestURI(kubeloginServerBaseURL)
 			if err != nil {

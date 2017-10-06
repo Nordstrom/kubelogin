@@ -117,6 +117,7 @@ func TestGetConfigSettings(t *testing.T) {
 		})
 	})
 }
+
 func TestCreateConfig(t *testing.T) {
 	Convey("getConfigSettings", t, func() {
 		var app app
@@ -151,6 +152,7 @@ func TestNewAliasConfig(t *testing.T) {
 		})
 	})
 }
+
 func TestUpdateAlias(t *testing.T) {
 	Convey("updateAlias", t, func() {
 		var app app
