@@ -1,6 +1,6 @@
 FROM quay.io/nordstrom/baseimage-ubuntu:16.04
 
-ARG CURRENT_TAG=v0.0.4-pre.1
+ARG CURRENT_TAG=v0.0.4-pre.2
 ARG KUBELOGIN_DOWNLOAD_BASE_URL=https://github.com/Nordstrom/kubelogin/releases/download
 
 RUN curl -sLo ${KUBELOGIN_DOWNLOAD_BASE_URL}/${CURRENT_TAG}/kubelogin-server-linux-${CURRENT_TAG}.tar.gz /tmp/ \

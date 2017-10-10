@@ -7,7 +7,7 @@ GITHUB_INDIVIDUAL_RELEASE_ASSET_URL := https://uploads.github.com/repos/$(GITHUB
 GITHUB_REPO_HOST_AND_PATH := github.com/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)
 IMAGE_NAME := quay.io/nordstrom/kubelogin
 BUILD := build
-CURRENT_TAG := v0.0.4-pre.1
+CURRENT_TAG := v0.0.4-pre.2
 GOLANG_TOOLCHAIN_VERSION := 1.9.1
 
 .PHONY: image/build image/push
@@ -66,6 +66,9 @@ release/assets/server: |
 	    -H "Content-Type: application/octet-stream" \
 	    "$(GITHUB_INDIVIDUAL_RELEASE_ASSET_URL)/$$(cat $(BUILD)/github-release-$(CURRENT_TAG)-id)/assets?name=$(<F)"
 
+$(BUILD)/github-release-$(CURRENT_TAG)-id: $(BUILD)/github-release-$(CURRENT_TAG)-response-body.json
+	jq -r '.id' "$<" > "$@"
+
 # find an existing, non-draft GH release or create one for the tag $(CURRENT_TAG)
 $(BUILD)/github-release-$(CURRENT_TAG)-response-body.json: | $(BUILD)
 	curl -s "$(GITHUB_RELEASES_API_URL)/tags/$(CURRENT_TAG)" > "$@"
@@ -74,12 +77,9 @@ $(BUILD)/github-release-$(CURRENT_TAG)-response-body.json: | $(BUILD)
 	    mv "$(BUILD)/github-release-$(CURRENT_TAG)-response-body-new.json" "$@"; \
 	fi
 
-$(BUILD)/github-release-$(CURRENT_TAG)-response-body-new.json: $(BUILD)/github-release-$(CURRENT_TAG)-draft-request-body.json
+$(BUILD)/github-release-$(CURRENT_TAG)-response-body-new.json: $(BUILD)/github-release-$(CURRENT_TAG)-draft-request-body.json release/tag/push
 	@if [ -z "$(GITHUB_USERNAME)" ]; then echo "Please set GITHUB_USERNAME"; exit 1; fi
 	curl -u $(GITHUB_USERNAME) -XPOST -d@"$<" "$(GITHUB_RELEASES_API_URL)" > "$@"
-
-$(BUILD)/github-release-$(CURRENT_TAG)-id: $(BUILD)/github-release-$(CURRENT_TAG)-response-body.json
-	jq -r '.id' "$<" > "$@"
 
 $(BUILD)/github-release-$(CURRENT_TAG)-draft-request-body.json: Makefile | $(BUILD)
 	jq -n '{ \
