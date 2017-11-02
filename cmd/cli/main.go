@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path"
+	"runtime"
 	"strings"
 	"time"
 
@@ -145,8 +146,22 @@ func generateURLAndListenForServerResponse(app app) {
 	}
 	doneChannel = make(chan bool)
 	go func() {
-		fmt.Printf("Follow this URL to log into auth provider: %s\n", loginURL)
-		if err := http.ListenAndServe(":"+portNum, createMux(app)); err != nil {
+		l, err := net.Listen("tcp", ":"+portNum)
+		if err != nil {
+			fmt.Printf("Error listening on port: %s. Error: %v\n", portNum, err)
+			os.Exit(1)
+		}
+		if runtime.GOOS == "darwin" {
+			// On OS X, run the `open` CLI to use the default browser to open the login URL.
+			fmt.Printf("Opening %s ...\n", loginURL)
+			err := exec.Command("open", loginURL).Run()
+			if err != nil {
+				fmt.Printf("Error opening; please open the URL manually.\n", loginURL)
+			}
+		} else {
+			fmt.Printf("Follow this URL to log into auth provider: %s\n", loginURL)
+		}
+		if err = http.Serve(l, createMux(app)); err != nil {
 			fmt.Printf("Error listening on port: %s. Error: %v\n", portNum, err)
 			os.Exit(1)
 		}
