@@ -208,10 +208,21 @@ func (config *Config) aliasSearch(alias string) (*AliasConfig, bool) {
 
 func (config *Config) createConfig(onDiskFile string, aliasConfig AliasConfig) error {
 	log.Print("Couldn't find config file in root directory. Creating config file...")
-	createCmd := exec.Command("touch", onDiskFile)
-	if err := createCmd.Run(); err != nil {
-		return errors.Wrap(err, "failed to create file in root directory")
+	// Does file exist? Update mtime, else create file
+	_, e := os.Stat(onDiskFile)
+	if os.IsNotExist(e) { // Create file
+		fh, err := os.Create(onDiskFile)
+		if err != nil {
+			return errors.Wrap(err, "failed to create file in root directory")
+		}
+		fh.Close()
+	} else { //File Exists
+		err := os.Chtimes(onDiskFile, time.Now(), time.Now())
+		if err != nil {
+			log.Print("Config file exists, but could not update file access times. Insufficient permissions?")
+		}
 	}
+
 	log.Print("Config file created, setting config values...")
 	config.Aliases = make([]*AliasConfig, 0)
 	config.appendAlias(aliasConfig)
