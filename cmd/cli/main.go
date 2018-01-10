@@ -154,7 +154,7 @@ func generateURLAndListenForServerResponse(app app) {
 		if runtime.GOOS == "darwin" {
 			// On OS X, run the `open` CLI to use the default browser to open the login URL.
 			fmt.Printf("Opening %s ...\n", loginURL)
-			err := exec.Command("open", loginURL).Run()
+			err := exec.Command("/usr/bin/open", loginURL).Run()
 			if err != nil {
 				fmt.Printf("Error opening; please open the URL manually.\n", loginURL)
 			}
