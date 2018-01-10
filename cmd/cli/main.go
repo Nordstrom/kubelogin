@@ -18,7 +18,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type app struct {
@@ -52,6 +52,7 @@ type AliasConfig struct {
 	KubectlUser string `yaml:"kubectl-user"`
 }
 
+// Config contains the array of aliases (AliasConfig)
 type Config struct {
 	Aliases []*AliasConfig `yaml:"aliases"`
 }
@@ -61,7 +62,7 @@ func findFreePort() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer server.Close()
+	defer server.Close() // nolint: errcheck
 	hostString := server.Addr().String()
 	_, portString, err := net.SplitHostPort(hostString)
 	if err != nil {
@@ -86,7 +87,7 @@ func (app *app) makeExchange(token string) error {
 	if res.StatusCode != http.StatusOK {
 		log.Fatalf("Failed to retrieve token from kubelogin server. Please try again or contact your administrator")
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	jwt, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("Unable to read response body. %s", err)
@@ -110,10 +111,7 @@ func (app *app) tokenHandler(w http.ResponseWriter, r *http.Request) {
 
 func (app *app) configureKubectl(jwt string) error {
 	configCmd := exec.Command("kubectl", "config", "set-credentials", app.kubectlUser, "--token="+jwt)
-	if err := configCmd.Run(); err != nil {
-		return err
-	}
-	return nil
+	return configCmd.Run()
 }
 
 func (app *app) generateAuthURL() (string, string, error) {
@@ -133,7 +131,10 @@ func createMux(app app) *http.ServeMux {
 	newMux.HandleFunc("/exchange/", app.tokenHandler)
 	newMux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(""))
+		_, err := w.Write([]byte(""))
+		if err != nil {
+			log.Printf("Unable to write favicon: %v ", err)
+		}
 		return
 	})
 	return newMux
@@ -156,7 +157,7 @@ func generateURLAndListenForServerResponse(app app) {
 			fmt.Printf("Opening %s ...\n", loginURL)
 			err := exec.Command("/usr/bin/open", loginURL).Run()
 			if err != nil {
-				fmt.Printf("Error opening; please open the URL manually.\n", loginURL)
+				fmt.Printf("Error opening; please open the URL manually: %s \n", loginURL)
 			}
 		} else {
 			fmt.Printf("Follow this URL to log into auth provider: %s\n", loginURL)
@@ -214,7 +215,7 @@ func (config *Config) createConfig(onDiskFile string, aliasConfig AliasConfig) e
 		if err != nil {
 			return errors.Wrap(err, "failed to create file in root directory")
 		}
-		fh.Close()
+		_ = fh.Close()
 	}
 
 	log.Print("Config file created, setting config values...")
@@ -267,10 +268,7 @@ func (app *app) configureFile(kubeloginrcAlias string, loginServerURL *url.URL, 
 	aliasConfig := config.newAliasConfig(kubeloginrcAlias, loginServerURL.String(), kubectlUser)
 	yamlFile, err := ioutil.ReadFile(app.filenameWithPath)
 	if err != nil {
-		if err := config.createConfig(app.filenameWithPath, aliasConfig); err != nil {
-			return err
-		}
-		return nil
+		return config.createConfig(app.filenameWithPath, aliasConfig) // Either error or nil value
 	}
 	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
 		return errors.Wrap(err, "failed to unmarshal yaml file")
@@ -285,10 +283,8 @@ func (app *app) configureFile(kubeloginrcAlias string, loginServerURL *url.URL, 
 		log.Print("New Alias configured")
 		return nil
 	}
-	if err := config.updateAlias(foundAliasConfig, loginServerURL, app.filenameWithPath); err != nil {
-		return err
-	}
-	return nil
+
+	return config.updateAlias(foundAliasConfig, loginServerURL, app.filenameWithPath) // Either error or nil value
 }
 
 func main() {
@@ -315,7 +311,7 @@ func main() {
 			}
 			generateURLAndListenForServerResponse(app)
 		} else {
-			loginCommmand.Parse(os.Args[2:])
+			_ = loginCommmand.Parse(os.Args[2:])
 			if loginCommmand.Parsed() {
 				if kubeloginServerBaseURL == "" {
 					log.Fatal("--server-url must be set!")
@@ -326,7 +322,7 @@ func main() {
 			}
 		}
 	case "config":
-		configCommand.Parse(os.Args[2:])
+		_ = configCommand.Parse(os.Args[2:])
 		if configCommand.Parsed() {
 			if kubeloginServerBaseURL == "" {
 				log.Fatal("--server-url must be set!")
