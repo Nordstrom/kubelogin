@@ -196,7 +196,13 @@ func (app *app) exchangeHandler(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	writer.Write([]byte(jwt))
+	_, e := writer.Write([]byte(jwt))
+	if e != nil {
+		cliToServerErrorCounter.Inc()
+		log.Printf("unable to write jwt token: %v ", e)
+		http.Error(writer, "unable to send token", http.StatusInternalServerError)
+		return
+	}
 
 	elapsedTime := time.Since(startTime)
 	elapsedSec := elapsedTime / time.Second
@@ -214,7 +220,11 @@ func (rv *redisValues) setToken(jwt, token string) error {
 // Generate SHA sum for JWT
 func (rv *redisValues) generateToken(jwt string) (string, error) {
 	hash := sha1.New()
-	hash.Write([]byte(jwt))
+	_, e := hash.Write([]byte(jwt))
+	if e != nil {
+		log.Printf("error hashing jwt: %v ", e)
+		return "", e
+	}
 	token := hash.Sum(nil)
 	tokenCounter.Inc()
 	if err := rv.setToken(jwt, fmt.Sprintf("%x", token)); err != nil {
