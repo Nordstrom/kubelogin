@@ -225,7 +225,6 @@ func (rv *redisValues) generateToken(jwt string) (string, error) {
 
 // this will take the JWT and port and generate the URL that will be redirected to
 func (rv *redisValues) generateSendBackURL(jwt string, port string) (string, error) {
-	log.Print(jwt)
 	stringToken, err := rv.generateToken(jwt)
 	if err != nil {
 		log.Printf("Error when setting token in database")
