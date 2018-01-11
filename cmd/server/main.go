@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha1"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
@@ -196,10 +199,40 @@ func (app *app) exchangeHandler(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	_, e := writer.Write([]byte(jwt))
+	// Compress tokens with gzip first to reduce size, then urlencode (increases compressed)
+	// size by approximately 1/3. Overall approximate compression rate is 5:1
+	//for larger tokens (13k -> 2.5k).  Payload = base64(gzip(jwt))
+	var buf bytes.Buffer
+	w := gzip.NewWriter(&buf)
+	_, err = w.Write([]byte(jwt))
+	if err != nil {
+		cliToServerErrorCounter.Inc()
+		log.Printf("error writing to gzip buffer: %v", err)
+		http.Error(writer, "failed to write gzip buffer", http.StatusInternalServerError)
+		return
+	}
+	err = w.Flush()
+	if err != nil {
+		log.Fatalln(err)
+		cliToServerErrorCounter.Inc()
+		log.Printf("error flushing gzip buffer: %v", err)
+		http.Error(writer, "failed to flush gzip buffer", http.StatusInternalServerError)
+		return
+	}
+	err = w.Close()
+	if err != nil {
+		log.Fatalln(err)
+		cliToServerErrorCounter.Inc()
+		log.Printf("error closing gzip buffer: %v", err)
+		http.Error(writer, "failed to close gzip buffer", http.StatusInternalServerError)
+		return
+	}
+	// Base64 urlencode the gzipped token for use as querystring.
+	utoken := base64.StdEncoding.EncodeToString(buf.Bytes())
+	_, e := writer.Write([]byte(utoken))
 	if e != nil {
 		cliToServerErrorCounter.Inc()
-		log.Printf("unable to write jwt token: %v ", e)
+		log.Printf("unable to send base64 jwt token: %v ", e)
 		http.Error(writer, "unable to send token", http.StatusInternalServerError)
 		return
 	}
