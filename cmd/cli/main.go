@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -88,11 +91,32 @@ func (app *app) makeExchange(token string) error {
 		log.Fatalf("Failed to retrieve token from kubelogin server. Please try again or contact your administrator")
 	}
 	defer res.Body.Close() // nolint: errcheck
-	jwt, err := ioutil.ReadAll(res.Body)
+
+	// Payload == base64(gzip(jwt))
+	compressedToken, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("Unable to read response body. %s", err)
 		return err
 	}
+	// Get to gzip data inside the base64 token
+	gzdata, err := base64.StdEncoding.DecodeString(string(compressedToken))
+	if err != nil {
+		log.Printf("unable to decode baes64 token: %v", err)
+		return err
+	}
+	gbuf := bytes.NewBuffer(gzdata)
+	gr, err := gzip.NewReader(gbuf)
+	if err != nil {
+		log.Printf("unable to create gzip reader: %v", err)
+		return err
+	}
+
+	jwt, err := ioutil.ReadAll(gr)
+	if err != nil {
+		log.Printf("unable to gunzip jwt: %v", err)
+		return err
+	}
+
 	if err := app.configureKubectl(string(jwt)); err != nil {
 		log.Printf("Error when setting credentials: %v", err)
 		return err
@@ -160,7 +184,7 @@ func generateURLAndListenForServerResponse(app app) {
 				fmt.Printf("Error opening; please open the URL manually: %s \n", loginURL)
 			}
 		} else {
-			fmt.Printf("Follow this URL to log into auth provider: %s\n", loginURL)
+			fmt.Printf("Follow this URL to log into auth provider: %s \n", loginURL)
 		}
 		if err = http.Serve(l, createMux(app)); err != nil {
 			fmt.Printf("Error listening on port: %s. Error: %v\n", portNum, err)
