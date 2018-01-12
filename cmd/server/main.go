@@ -92,7 +92,6 @@ func (authClient *oidcClient) getOAuth2Config(scopes []string) *oauth2.Config {
 // used to grab fields from HTTP requests
 func getField(request *http.Request, fieldName string) string {
 	if request.FormValue(fieldName) != "" {
-		log.Printf("%s: [%s]", fieldName, request.FormValue(fieldName))
 		return request.FormValue(fieldName)
 	}
 	return ""
@@ -199,7 +198,7 @@ func (app *app) exchangeHandler(writer http.ResponseWriter, request *http.Reques
 	_, e := writer.Write([]byte(jwt))
 	if e != nil {
 		cliToServerErrorCounter.Inc()
-		log.Printf("unable to write jwt token: %v ", e)
+		log.Printf("unable to write jwt token: %v", e)
 		http.Error(writer, "unable to send token", http.StatusInternalServerError)
 		return
 	}
@@ -222,7 +221,7 @@ func (rv *redisValues) generateToken(jwt string) (string, error) {
 	hash := sha1.New()
 	_, e := hash.Write([]byte(jwt))
 	if e != nil {
-		log.Printf("error hashing jwt: %v ", e)
+		log.Printf("error hashing jwt: %v", e)
 		return "", e
 	}
 	token := hash.Sum(nil)
