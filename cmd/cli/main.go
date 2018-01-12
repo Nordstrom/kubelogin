@@ -32,29 +32,20 @@ type app struct {
 type kubeYAML struct {
 	APIVersion string `yaml:"apiVersion"`
 	Clusters   []struct {
-		Cluster struct {
-			CertificateAuthority string `yaml:"certificate-authority"`
-			Server               string `yaml:"server"`
-		} `yaml:"cluster"`
-		Name string `yaml:"name"`
+		Cluster map[string]interface{} `yaml:"cluster"`
+		Name    string                 `yaml:"name"`
 	} `yaml:"clusters"`
 	Contexts []struct {
-		Context struct {
-			Cluster   string `yaml:"cluster"`
-			Namespace string `yaml:"namespace"`
-			User      string `yaml:"user"`
-		} `yaml:"context"`
-		Name string `yaml:"name"`
+		Context map[string]interface{} `yaml:"context"`
+		Name    string                 `yaml:"name"`
 	} `yaml:"contexts"`
 	CurrentContext string `yaml:"current-context"`
 	Kind           string `yaml:"kind"`
 	Preferences    struct {
 	} `yaml:"preferences"`
 	Users []struct {
-		Name string `yaml:"name"`
-		User struct {
-			Token string `yaml:"token"`
-		} `yaml:"user"`
+		Name string                 `yaml:"name"`
+		User map[string]interface{} `yaml:"user"`
 	} `yaml:"users"`
 }
 
@@ -158,10 +149,11 @@ func (app *app) configureKubectl(jwt string) error {
 		log.Fatalf("could not unmarshal kube config: %v", err)
 
 	}
-	// Must range through all contexts, as Users is an unordered slice
+	// Must range through all Users, as it is an unordered slice
 	for k, v := range ky.Users {
 		if app.kubectlUser == v.Name {
-			v.User.Token = jwt
+			// We only care about a token entry, bypass the issues with client certs
+			v.User["token"] = jwt
 			ky.Users[k] = v
 		}
 	}
