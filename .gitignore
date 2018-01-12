@@ -16,4 +16,4 @@
 build/
 
 # Ignore vscode workspace folder
-.vscode
+.vscode/
