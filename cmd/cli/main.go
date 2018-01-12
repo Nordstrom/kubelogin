@@ -22,10 +22,40 @@ import (
 )
 
 type app struct {
-	filenameWithPath string
-	kubectlUser      string
-	kubeloginAlias   string
-	kubeloginServer  string
+	filenameWithPath  string
+	kubectlUser       string
+	kubectlConfigPath string
+	kubeloginAlias    string
+	kubeloginServer   string
+}
+
+type kubeYAML struct {
+	APIVersion string `yaml:"apiVersion"`
+	Clusters   []struct {
+		Cluster struct {
+			CertificateAuthority string `yaml:"certificate-authority"`
+			Server               string `yaml:"server"`
+		} `yaml:"cluster"`
+		Name string `yaml:"name"`
+	} `yaml:"clusters"`
+	Contexts []struct {
+		Context struct {
+			Cluster   string `yaml:"cluster"`
+			Namespace string `yaml:"namespace"`
+			User      string `yaml:"user"`
+		} `yaml:"context"`
+		Name string `yaml:"name"`
+	} `yaml:"contexts"`
+	CurrentContext string `yaml:"current-context"`
+	Kind           string `yaml:"kind"`
+	Preferences    struct {
+	} `yaml:"preferences"`
+	Users []struct {
+		Name string `yaml:"name"`
+		User struct {
+			Token string `yaml:"token"`
+		} `yaml:"user"`
+	} `yaml:"users"`
 }
 
 var (
@@ -110,8 +140,38 @@ func (app *app) tokenHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) configureKubectl(jwt string) error {
-	configCmd := exec.Command("kubectl", "config", "set-credentials", app.kubectlUser, "--token="+jwt)
-	return configCmd.Run()
+	// Avoid guessing at appropriate file mode later
+	fi, ferr := os.Stat(app.kubectlConfigPath)
+	if ferr != nil {
+		log.Fatalf("could not stat kube config: %v", ferr)
+	}
+
+	kc, err := ioutil.ReadFile(app.kubectlConfigPath)
+	if err != nil {
+		log.Fatalf("could not read kube config file: %v", err)
+
+	}
+
+	var ky kubeYAML
+	err = yaml.Unmarshal(kc, &ky)
+	if err != nil {
+		log.Fatalf("could not unmarshal kube config: %v", err)
+
+	}
+	// Must range through all contexts, as Users is an unordered slice
+	for k, v := range ky.Users {
+		if app.kubectlUser == v.Name {
+			v.User.Token = jwt
+			ky.Users[k] = v
+		}
+	}
+
+	out, e := yaml.Marshal(&ky)
+	if e != nil {
+		log.Fatalf("could not write kube config: %v", e)
+
+	}
+	return ioutil.WriteFile(app.kubectlConfigPath, out, fi.Mode())
 }
 
 func (app *app) generateAuthURL() (string, string, error) {
@@ -298,6 +358,7 @@ func main() {
 		log.Fatalf("Could not determine current user of this system. Err: %v", err)
 	}
 	app.filenameWithPath = path.Join(user.HomeDir, "/.kubeloginrc.yaml")
+	app.kubectlConfigPath = path.Join(user.HomeDir, ".kube", "config")
 	if len(os.Args) < 3 {
 		fmt.Println(usageMessage)
 		os.Exit(1)
