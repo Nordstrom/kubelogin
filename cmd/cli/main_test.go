@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	yaml "gopkg.in/yaml.v2"
 )
 
 func TestFindFreePort(t *testing.T) {
@@ -69,6 +71,43 @@ func TestConfigureKubectl(t *testing.T) {
 			app.kubectlUser = ""
 			err := app.configureKubectl("hoopla")
 			So(err, ShouldNotEqual, nil)
+		})
+	})
+}
+
+func TestEditToken(t *testing.T) {
+	Convey("editToken", t, func() {
+		var app app
+		app.kubectlUser = "nonprod_oidc"
+		token := "fancyToken"
+		Convey("should return nil upon setting the token correctly", func() {
+			kyaml, err := constructYaml()
+			if err != nil {
+				t.Error(err)
+			}
+			var u k8User
+			y := editToken(kyaml, app, token)
+			ok, u := findUserStruct(y, app.kubectlUser)
+			if !ok {
+				u.User["token"] = ""
+			}
+			t.Logf("NonProd Token Test :: %+v \n", y.Users) // DEBUG
+			So(u.User["token"], ShouldEqual, "fancyToken")
+		})
+		Convey("should construct a new user with token if user does not exist", func() {
+			kyaml, err := constructYaml()
+			if err != nil {
+				t.Error(err)
+			}
+			var u k8User
+			app.kubectlUser = "doesNotExist"
+			y := editToken(kyaml, app, token)
+			ok, u := findUserStruct(y, app.kubectlUser)
+			if !ok {
+				u.User["token"] = ""
+			}
+			t.Logf("DNE Token Test :: %+v \n", y.Users) // DEBUG
+			So(u.User["token"], ShouldEqual, "fancyToken")
 		})
 	})
 }
@@ -175,4 +214,25 @@ func TestUpdateAlias(t *testing.T) {
 			So(err, ShouldEqual, nil)
 		})
 	})
+}
+
+// Must search for User struct because slices have no guaranteed order
+func findUserStruct(y kubeYAML, p string) (bool, k8User) {
+	for _, v := range y.Users {
+		if v.Name == p {
+			return true, v
+		}
+	}
+	return false, k8User{}
+}
+
+// Attempting to unmarshal a text string as YAML failed due to illegal characters
+func constructYaml() (kubeYAML, error) {
+	var kyaml kubeYAML
+	tokenKube, err := ioutil.ReadFile("testdata.yml")
+	if err != nil {
+		return kyaml, err
+	}
+	err = yaml.Unmarshal(tokenKube, &kyaml)
+	return kyaml, err
 }

@@ -43,10 +43,12 @@ type kubeYAML struct {
 	Kind           string `yaml:"kind"`
 	Preferences    struct {
 	} `yaml:"preferences"`
-	Users []struct {
-		Name string                 `yaml:"name"`
-		User map[string]interface{} `yaml:"user"`
-	} `yaml:"users"`
+	Users []k8User `yaml:"users"`
+}
+
+type k8User struct {
+	Name string                 `yaml:"name"`
+	User map[string]interface{} `yaml:"user"`
 }
 
 var (
@@ -130,6 +132,30 @@ func (app *app) tokenHandler(w http.ResponseWriter, r *http.Request) {
 	doneChannel <- true
 }
 
+// Pure function to test adding/editing token to kubectl config
+func editToken(k kubeYAML, a app, t string) kubeYAML {
+	found := false
+	// Look for existing users which match
+	for key, v := range k.Users {
+		if a.kubectlUser == v.Name {
+			// We only care about a token entry, bypass the issues with client certs
+			v.User["token"] = t
+			k.Users[key] = v
+			found = true
+		}
+	}
+	// We didn't find the user. Time to create one.
+	if !found {
+		var u k8User
+		u.Name = a.kubectlUser
+		m := make(map[string]interface{})
+		m["token"] = t
+		u.User = m
+		k.Users = append(k.Users, u)
+	}
+	return k
+}
+
 func (app *app) configureKubectl(jwt string) error {
 	// Avoid guessing at appropriate file mode later
 	fi, ferr := os.Stat(app.kubectlConfigPath)
@@ -149,16 +175,11 @@ func (app *app) configureKubectl(jwt string) error {
 		log.Fatalf("could not unmarshal kube config: %v", err)
 
 	}
-	// Must range through all Users, as it is an unordered slice
-	for k, v := range ky.Users {
-		if app.kubectlUser == v.Name {
-			// We only care about a token entry, bypass the issues with client certs
-			v.User["token"] = jwt
-			ky.Users[k] = v
-		}
-	}
 
-	out, e := yaml.Marshal(&ky)
+	// Edit or add user in pure function (for testing purposes)
+	uy := editToken(ky, *app, jwt)
+
+	out, e := yaml.Marshal(&uy)
 	if e != nil {
 		log.Fatalf("could not write kube config: %v", e)
 
