@@ -13,6 +13,17 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func init() {
+	testTest = true
+}
+
+func TestVersion(t *testing.T) {
+	fortest()
+	Convey("Version has to be set.", t, func() {
+		So(version, ShouldEqual, "testing")
+	})
+}
+
 func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 		redisTTL, _ := time.ParseDuration("10s")

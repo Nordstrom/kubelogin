@@ -8,7 +8,10 @@ GITHUB_REPO_HOST_AND_PATH := github.com/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)
 IMAGE_NAME := quay.io/nordstrom/kubelogin
 BUILD := build
 CURRENT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
-CURRENT_TAG := v0.0.52
+# NOTE: only patch level version is auto incremented to set a new version
+# 		to specify a new version: $ make version CURRENT_TAG="v0.2.0"
+LAST_TAG := $(shell git tag --list | tail -1)
+CURRENT_TAG ?= $(shell echo $(LAST_TAG) | awk -F. '{print $$1"."$$2"."$$NF+1}')
 GOLANG_TOOLCHAIN_VERSION := 1.9.1
 
 .PHONY: image/build image/push
@@ -139,6 +142,7 @@ $(BUILD)/server/kubelogin-server-$(CURRENT_TAG)-%: cmd/server/*.go | $(BUILD)/se
 	  -e GOOS=$* \
 	  golang:$(GOLANG_TOOLCHAIN_VERSION) \
 	    go build -v -o /go/bin/$(@F) \
+		  -ldflags "-X main.version=$(CURRENT_TAG)" \
 	      $(GITHUB_REPO_HOST_AND_PATH)/cmd/server/
 
 $(BUILD)/cli/kubelogin-cli-$(CURRENT_TAG)-%: cmd/cli/*.go | $(BUILD)/cli
@@ -149,6 +153,7 @@ $(BUILD)/cli/kubelogin-cli-$(CURRENT_TAG)-%: cmd/cli/*.go | $(BUILD)/cli
 	  -e GOOS=$* \
 	  golang:$(GOLANG_TOOLCHAIN_VERSION) \
 	    go build -v -o /go/bin/$(@F) \
+		  -ldflags "-X main.version=$(CURRENT_TAG)" \
 	      $(GITHUB_REPO_HOST_AND_PATH)/cmd/cli/ \
 
 .PHONY: test_app
@@ -160,3 +165,8 @@ build $(BUILD)/server $(BUILD)/server/linux $(BUILD)/cli $(BUILD)/cli/mac $(BUIL
 
 clean:
 	rm -rf build
+
+.PHONY: version
+version: ${ARGS}
+	@echo "Last tag: $(LAST_TAG)"
+	@echo "Next tag: $(CURRENT_TAG)"

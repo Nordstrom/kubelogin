@@ -76,7 +76,18 @@ var (
 		Help: "tracks the duration of each response handler. classified by the request method",
 	},
 		[]string{"method"})
+	version  string
+	testTest = false
 )
+
+// fortest checks at runtime if tests are running, if not we must have version.
+func fortest() {
+	if !testTest { // testTest is set in main_test.go
+		panic("Kubelogin version is not set.") // Makefile must inject version string
+	} else {
+		version = "testing"
+	}
+}
 
 // the config for oauth2, scopes contain info we want back from the auth server
 func (authClient *oidcClient) getOAuth2Config(scopes []string) *oauth2.Config {

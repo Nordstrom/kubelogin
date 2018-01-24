@@ -11,6 +11,17 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func init() {
+	testTest = true
+}
+
+func TestVersion(t *testing.T) {
+	fortest()
+	Convey("Version has to be set.", t, func() {
+		So(version, ShouldEqual, "testing")
+	})
+}
+
 func TestFindFreePort(t *testing.T) {
 	Convey("findFreePort", t, func() {
 		Convey("should find a free port and return a port as a string if there is no error", func() {
