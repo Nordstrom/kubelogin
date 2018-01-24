@@ -91,7 +91,6 @@ func TestEditToken(t *testing.T) {
 			if !ok {
 				u.User["token"] = ""
 			}
-			t.Logf("NonProd Token Test :: %+v \n", y.Users) // DEBUG
 			So(u.User["token"], ShouldEqual, "fancyToken")
 		})
 		Convey("should construct a new user with token if user does not exist", func() {
@@ -106,7 +105,6 @@ func TestEditToken(t *testing.T) {
 			if !ok {
 				u.User["token"] = ""
 			}
-			t.Logf("DNE Token Test :: %+v \n", y.Users) // DEBUG
 			So(u.User["token"], ShouldEqual, "fancyToken")
 		})
 	})
