@@ -1,0 +1,32 @@
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority: ca.pem
+    server: https://example.net
+  name: cluster-1-nonprod
+- cluster:
+    certificate-authority: ca.pem
+    server: https://example.net
+  name: cluster-1-production
+contexts:
+- context:
+    cluster: cluster-1-nonprod
+    namespace: test
+    user: nonprod_oidc
+  name: cluster-1-nonprod
+- context:
+    cluster: cluster-1-production
+    namespace: test
+    user: production_oidc
+  name: cluster-1-production
+current-context: cluster-1-nonprod
+kind: Config
+preferences: {}
+users:
+- name: nonprod_oidc
+  user:
+    token: nonprodToken
+    certificate: otherCA.pem
+- name: production_oidc
+  user:
+    token: prodToken
