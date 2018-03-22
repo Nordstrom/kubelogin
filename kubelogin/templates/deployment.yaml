@@ -37,10 +37,8 @@ spec:
           value: "/etc/ssl/kubelogin/tls.crt"
         - name: HTTPS_KEY_PATH
           value: "/etc/ssl/kubelogin/tls.key"
-        - name: GROUPS_CLAIM
-          value: "{{ .Values.kubelogin.groupsClaim}}"
-        - name: USER_CLAIM
-          value: "{{ .Values.kubelogin.userClaim}}"
+        - name: CLAIMS
+          value: "{{ .Values.kubelogin.claims}}"
         - name: LISTEN_PORT
           value: "{{ .Values.kubelogin.listenPort}}"
         - name: OIDC_PROVIDER_URL

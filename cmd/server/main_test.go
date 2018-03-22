@@ -17,7 +17,7 @@ func TestServerSpecs(t *testing.T) {
 	Convey("Kubelogin Server", t, func() {
 		redisTTL, _ := time.ParseDuration("10s")
 		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
-		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "claims")
 		app := setAppMemberFields(rv, oidcClient)
 		unitTestServer := httptest.NewServer(getMux(app, "/downoad"))
 		Convey("The handleCLILogin function", func() {
@@ -110,7 +110,7 @@ func TestMakeRedisClient(t *testing.T) {
 	Convey("makeRedisClient", t, func() {
 		redisTTL, _ := time.ParseDuration("10s")
 		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
-		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "claims")
 		app := setAppMemberFields(rv, oidcClient)
 		Convey("should fail since no Redis address environment variable was set", func() {
 			err := app.redisValues.makeRedisClient()
@@ -123,7 +123,7 @@ func TestGenerateToken(t *testing.T) {
 	Convey("generateToken", t, func() {
 		redisTTL, _ := time.ParseDuration("10s")
 		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
-		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "claims")
 		app := setAppMemberFields(rv, oidcClient)
 		err := app.redisValues.makeRedisClient()
 		if err != nil {
@@ -141,7 +141,7 @@ func TestFetchJWTForToken(t *testing.T) {
 	Convey("fetchJWTForToken", t, func() {
 		redisTTL, _ := time.ParseDuration("10s")
 		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
-		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "claims")
 		app := setAppMemberFields(rv, oidcClient)
 		err := app.redisValues.makeRedisClient()
 		if err != nil {
@@ -159,7 +159,7 @@ func TestGenerateSendBackURL(t *testing.T) {
 	Convey("generateSendBackURL", t, func() {
 		redisTTL, _ := time.ParseDuration("10s")
 		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
-		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "claims")
 		app := setAppMemberFields(rv, oidcClient)
 		err := app.redisValues.makeRedisClient()
 		if err != nil {
@@ -178,14 +178,12 @@ func TestNewAuthClient(t *testing.T) {
 	Convey("authClientSetup", t, func() {
 		provider := &oidc.Provider{}
 		Convey("authClientSetup should return a serverApp struct with the clientid/secret, redirect URL, and defaultClient info filled in", func() {
-			testClient := newAuthClient("foo", "bar", "redirect", provider, "fooGroups", "fooUsers")
+			testClient := newAuthClient("foo", "bar", "redirect", provider, "claims")
 			correctID := testClient.clientID == "foo"
 			correctSec := testClient.clientSecret == "bar"
 			correctURI := testClient.redirectURI == "redirect"
 			correctClient := testClient.client == http.DefaultClient
-			correctUser := testClient.userClaim == "fooUsers"
-			correctGroup := testClient.groupsClaim == "fooGroups"
-			overallCorrect := correctClient && correctID && correctSec && correctURI && correctUser && correctGroup
+			overallCorrect := correctClient && correctID && correctSec && correctURI
 			So(overallCorrect, ShouldEqual, true)
 		})
 	})
@@ -195,7 +193,7 @@ func TestHealthHandler(t *testing.T) {
 	Convey("healthHandler", t, func() {
 		redisTTL, _ := time.ParseDuration("10s")
 		rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
-		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "groupsClaim", "userClaim")
+		oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), &oidc.Provider{}, "claims")
 		app := setAppMemberFields(rv, oidcClient)
 		unitTestServer := httptest.NewServer(getMux(app, "/download"))
 		Convey("Should write back to the response writer a statusOK", func() {

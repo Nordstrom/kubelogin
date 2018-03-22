@@ -8,7 +8,7 @@ GITHUB_REPO_HOST_AND_PATH := github.com/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)
 IMAGE_NAME := quay.io/nordstrom/kubelogin
 BUILD := build
 CURRENT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
-CURRENT_TAG := v0.0.55
+CURRENT_TAG := v0.0.55-dev
 GOLANG_TOOLCHAIN_VERSION := 1.9.1
 
 .PHONY: image/build image/push
@@ -21,10 +21,6 @@ GOLANG_TOOLCHAIN_VERSION := 1.9.1
 image/push: image/build
 	docker push $(IMAGE_NAME):$(CURRENT_TAG)
 
-# image/build: $(BUILD)/cli/mac/kubelogin-cli-$(CURRENT_TAG)-darwin.tar.gz
-# image/build: $(BUILD)/cli/linux/kubelogin-cli-$(CURRENT_TAG)-linux.tar.gz
-# image/build: $(BUILD)/cli/windows/kubelogin-cli-$(CURRENT_TAG)-windows-$(CURRENT_TAG).zip
-# image/build: $(BUILD)/server/linux/kubelogin-server-$(CURRENT_TAG)-linux
 image/build: $(BUILD)/Dockerfile release/github/publish
 	docker build --tag $(IMAGE_NAME):$(CURRENT_TAG) $(<D)
 
@@ -62,16 +58,6 @@ release/assets/cli: $(RELEASE_ASSETS_CLI_TARGETS)
 release/assets/cli/%: $(BUILD)/github-release-asset-response-kubelogin-cli-$(CURRENT_TAG)-%-asset-response.json
 release/assets/server: $(RELEASE_ASSETS_SERVER_TARGETS)
 release/assets/server/%: $(BUILD)/github-release-asset-response-kubelogin-server-$(CURRENT_TAG)-%.json
-
-# release/assets/cli/darwin: $(BUILD)/cli/mac/kubelogin-cli-$(CURRENT_TAG)-darwin.tar.gz $(BUILD)/github-release-$(CURRENT_TAG)-id
-# release/assets/cli/linux: $(BUILD)/cli/linux/kubelogin-cli-$(CURRENT_TAG)-linux.tar.gz $(BUILD)/github-release-$(CURRENT_TAG)-id
-# release/assets/cli/windows: $(BUILD)/cli/windows/kubelogin-cli-$(CURRENT_TAG)-windows.zip $(BUILD)/github-release-$(CURRENT_TAG)-id
-# $(RELEASE_ASSETS_CLI_TARGETS): |
-# 	@if [ -z "$(GITHUB_USERNAME)" ]; then echo "Please set GITHUB_USERNAME"; exit 1; fi
-# 	curl -u $(GITHUB_USERNAME) \
-# 	    --data-binary @"$<" \
-# 	    -H "Content-Type: application/octet-stream" \
-# 	    "$(GITHUB_INDIVIDUAL_RELEASE_ASSET_URL)/$$(cat $(BUILD)/github-release-$(CURRENT_TAG)-id)/assets?name=$(<F)"
 
 $(BUILD)/github-release-asset-response-kubelogin-cli-$(CURRENT_TAG)-darwin.json: $(BUILD)/cli/mac/kubelogin-cli-$(CURRENT_TAG)-darwin.tar.gz $(BUILD)/github-release-$(CURRENT_TAG)-id
 $(BUILD)/github-release-asset-response-kubelogin-cli-$(CURRENT_TAG)-linux.json: $(BUILD)/cli/linux/kubelogin-cli-$(CURRENT_TAG)-linux.tar.gz $(BUILD)/github-release-$(CURRENT_TAG)-id

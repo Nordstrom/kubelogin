@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc"
@@ -36,8 +37,7 @@ type oidcClient struct {
 	verifier     *oidc.IDTokenVerifier
 	provider     *oidc.Provider
 	client       *http.Client
-	groupsClaim  string
-	userClaim    string
+	claims       []string
 }
 
 const (
@@ -109,7 +109,7 @@ func (app *app) handleCLILogin(writer http.ResponseWriter, request *http.Request
 		http.Error(writer, "No return port in URL", http.StatusBadRequest)
 		return
 	}
-	var scopes = []string{"openid", app.authClient.groupsClaim, app.authClient.userClaim}
+	var scopes = append(app.authClient.claims, "openid")
 	authCodeURL := app.authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
 
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
@@ -245,7 +245,7 @@ func (rv *redisValues) generateSendBackURL(jwt string, port string) (string, err
 }
 
 // sets up the struct for later use
-func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider, groupsClaim string, userClaim string) *oidcClient {
+func newAuthClient(clientID string, clientSecret string, redirectURI string, provider *oidc.Provider, claims string) *oidcClient {
 	return &oidcClient{
 		clientID:     clientID,
 		clientSecret: clientSecret,
@@ -253,8 +253,7 @@ func newAuthClient(clientID string, clientSecret string, redirectURI string, pro
 		client:       http.DefaultClient,
 		provider:     provider,
 		verifier:     provider.Verifier(&oidc.Config{ClientID: clientID}),
-		groupsClaim:  groupsClaim,
-		userClaim:    userClaim,
+		claims:       strings.Split(claims, ","),
 	}
 }
 
@@ -362,14 +361,7 @@ func main() {
 	if downloadDir == "" {
 		downloadDir = "/download"
 	}
-	groupsClaim := os.Getenv("GROUPS_CLAIM")
-	if groupsClaim == "" {
-		groupsClaim = "groups"
-	}
-	userClaim := os.Getenv("USER_CLAIM")
-	if userClaim == "" {
-		userClaim = "email"
-	}
+	claims := os.Getenv("CLAIMS")
 	ttl := os.Getenv("REDIS_TTL")
 	if ttl == "" {
 		ttl = "10s"
@@ -379,7 +371,7 @@ func main() {
 		log.Fatal("Failed to parse the duration of the Redis TTL, please check that a valid value was set. e.g. 10s or 1m10s")
 	}
 	rv := setRedisValues(os.Getenv("REDIS_ADDR"), os.Getenv("REDIS_PASSWORD"), redisTTL)
-	oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider, groupsClaim, userClaim)
+	oidcClient := newAuthClient(os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URL"), provider, claims)
 	app := setAppMemberFields(rv, oidcClient)
 	if err := app.redisValues.makeRedisClient(); err != nil {
 		log.Fatalf("Error communicating with Redis: %v", err)
