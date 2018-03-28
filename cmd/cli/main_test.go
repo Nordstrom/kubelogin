@@ -182,7 +182,7 @@ func TestNewAliasConfig(t *testing.T) {
 		app.filenameWithPath = fmt.Sprintf("%s/.test.yaml", user.HomeDir)
 		var config Config
 		Convey("should return nil upon putting in a new entry into the config file", func() {
-			aliasFlag = "test"
+			aliasName = "test"
 			kubeloginServerBaseURL = "testServer"
 			newConfig := config.newAliasConfig("foo", "bar", "foobar")
 			So(newConfig, ShouldNotBeEmpty)
@@ -206,7 +206,7 @@ func TestUpdateAlias(t *testing.T) {
 		config.Aliases = append(config.Aliases, &newAliasConfig)
 		fakeURL, _ := url.Parse("bar")
 		Convey("should return nil upon updating an entry in the config file", func() {
-			aliasFlag = "test"
+			aliasName = "test"
 			userFlag = "test"
 			err := config.updateAlias(&newAliasConfig, fakeURL, app.filenameWithPath)
 			So(err, ShouldEqual, nil)

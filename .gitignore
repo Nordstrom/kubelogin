@@ -17,3 +17,6 @@ build/
 
 # Ignore vscode workspace folder
 .vscode/
+
+# Ignore the .idea directory
+.idea/

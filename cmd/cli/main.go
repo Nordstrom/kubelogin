@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,12 +12,11 @@ import (
 	"os/user"
 	"path"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
-
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/yaml.v2"
 )
 
 type app struct {
@@ -52,21 +50,43 @@ type k8User struct {
 }
 
 var (
-	aliasFlag              string
+	aliasName              string
 	userFlag               string
-	kubeloginServerBaseURL string
+	kubeloginServerBaseURL *url.URL
 	doneChannel            chan bool
-	usageMessage           = `Kubelogin Usage:
-  
-  One time login:
-    kubelogin login --server-url=https://kubelogin.example.com --kubectl-user=user
-    
-  Configure an alias (shortcut):
-    kubelogin config --alias=example --server-url=https://kubelogin.example.com --kubectl-user=example_oidc
-    
-  Use an alias:
-    kubelogin login example`
+
+	version  string
 )
+
+// Kingpin variables
+// Some trickery which makes things like --server-url required for config, optional for login but not for version or get-config. Based on this https://github.com/alecthomas/kingpin/issues/36
+func loginOrConfigureOptions(cmd *kingpin.CmdClause) {
+	switch cmd.FullCommand() {
+	case loginCMD.FullCommand():
+		cmd.Flag("server-url", "The kubelogin server to connect to. ex: https://kubelogin.example.com").Short('s').URLVar(&kubeloginServerBaseURL)
+		cmd.Flag("kubectl-user", "A user in your kubectl config to use for the connection.").Short('u').StringVar(&userFlag)
+		cmd.Arg("alias", "An alias to a kubelogin server:kubectl pair.").StringVar(&aliasName)
+	case configCMD.FullCommand():
+		cmd.Flag("server-url", "The kubelogin server to connect to. ex: https://kubelogin.example.com").Short('s').Required().URLVar(&kubeloginServerBaseURL)
+		cmd.Flag("kubectl-user", "A user in your kubectl config to use for the connection.").Short('u').Required().StringVar(&userFlag)
+		cmd.Flag("alias", "The alias to use when saving a connection.").Short('a').Required().StringVar(&aliasName)
+	}
+}
+
+var (
+	klogin      		= kingpin.New("kubelogin", "Communicate with a kubelogin server (https://github.com/Nordstrom/kubelogin) and sets the token field of the kubectl config file. The kubernetes API server will use this token for OIDC authentication.")
+
+	loginCMD			= klogin.Command("login", "Login through a kubelogin server.")
+	configCMD	    	= klogin.Command("config", "Create a profile to a kubelogin server.")
+	configViewCMD		= klogin.Command("get-config", "View the current kubelogin config.")
+)
+
+func init() {
+	klogin.Version(version)
+	klogin.HelpFlag.Short('h')
+	loginOrConfigureOptions(loginCMD)
+	loginOrConfigureOptions(configCMD)
+}
 
 //AliasConfig contains the structure of what's in the config file
 type AliasConfig struct {
@@ -160,19 +180,19 @@ func (app *app) configureKubectl(jwt string) error {
 	// Avoid guessing at appropriate file mode later
 	fi, ferr := os.Stat(app.kubectlConfigPath)
 	if ferr != nil {
-		log.Fatalf("could not stat kube config: %v", ferr)
+		log.Fatalf("Could not stat kube config: %v", ferr)
 	}
 
 	kc, err := ioutil.ReadFile(app.kubectlConfigPath)
 	if err != nil {
-		log.Fatalf("could not read kube config file: %v", err)
+		log.Fatalf("Could not read kube config file: %v", err)
 
 	}
 
 	var ky kubeYAML
 	err = yaml.Unmarshal(kc, &ky)
 	if err != nil {
-		log.Fatalf("could not unmarshal kube config: %v", err)
+		log.Fatalf("Could not unmarshal kube config: %v", err)
 
 	}
 
@@ -181,7 +201,7 @@ func (app *app) configureKubectl(jwt string) error {
 
 	out, e := yaml.Marshal(&uy)
 	if e != nil {
-		log.Fatalf("could not write kube config: %v", e)
+		log.Fatalf("Could not write kube config: %v", e)
 
 	}
 	return ioutil.WriteFile(app.kubectlConfigPath, out, fi.Mode())
@@ -245,13 +265,6 @@ func generateURLAndListenForServerResponse(app app) {
 	time.Sleep(1 * time.Second)
 }
 
-func setFlags(command *flag.FlagSet, loginCmd bool) {
-	if !loginCmd {
-		command.StringVar(&aliasFlag, "alias", "default", "alias name in the config file, used for an easy login")
-	}
-	command.StringVar(&userFlag, "kubectl-user", "kubelogin_user", "in kubectl config, username used to store credentials")
-	command.StringVar(&kubeloginServerBaseURL, "server-url", "", "base URL of the kubelogin server, ex: https://kubelogin.example.com")
-}
 func (app *app) getConfigSettings(alias string) error {
 	yamlFile, err := ioutil.ReadFile(app.filenameWithPath)
 	if err != nil {
@@ -344,9 +357,9 @@ func (app *app) configureFile(kubeloginrcAlias string, loginServerURL *url.URL, 
 		return config.createConfig(app.filenameWithPath, aliasConfig) // Either error or nil value
 	}
 	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
-		return errors.Wrap(err, "failed to unmarshal yaml file")
+		return errors.Wrap(err, "Failed to parse kubectl config file.")
 	}
-	foundAliasConfig, ok := config.aliasSearch(aliasFlag)
+	foundAliasConfig, ok := config.aliasSearch(aliasName)
 	if !ok {
 		newConfig := config.newAliasConfig(kubeloginrcAlias, loginServerURL.String(), kubectlUser)
 		config.appendAlias(newConfig)
@@ -360,59 +373,80 @@ func (app *app) configureFile(kubeloginrcAlias string, loginServerURL *url.URL, 
 	return config.updateAlias(foundAliasConfig, loginServerURL, app.filenameWithPath) // Either error or nil value
 }
 
+// Print version number and exit.
+func printKubeloginVersion() {
+	log.Fatalln("Version number currently does not exist")
+}
+
+// Prints the current kubelogin client config and exits.
+func (app *app) printKubeloginConfig() error {
+	yamlFile, err := ioutil.ReadFile(app.filenameWithPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read kubelogin config file.")
+	}
+	var config Config
+	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
+		return errors.Wrap(err, "Failed to parse kubelogin config file.")
+	}
+
+	fmt.Print(string(yamlFile))
+
+	return nil
+}
+
 func main() {
 	var app app
-	loginCommmand := flag.NewFlagSet("login", flag.ExitOnError)
-	setFlags(loginCommmand, true)
-	configCommand := flag.NewFlagSet("config", flag.ExitOnError)
-	setFlags(configCommand, false)
+
+	//TODO: Allow the current user to be specified as an arg?
 	user, err := user.Current()
 	if err != nil {
 		log.Fatalf("Could not determine current user of this system. Err: %v", err)
 	}
+
+	//TODO: Allow the specification of an alternate kubeloginrc file?
 	app.filenameWithPath = path.Join(user.HomeDir, "/.kubeloginrc.yaml")
+	//TODO: Allow the specification of an alternate kubecctl config file?
 	app.kubectlConfigPath = path.Join(user.HomeDir, ".kube", "config")
-	if len(os.Args) < 3 {
-		fmt.Println(usageMessage)
-		os.Exit(1)
-	}
-	switch os.Args[1] {
-	case "login":
-		if !strings.HasPrefix(os.Args[2], "--") {
-			//use alias to extract needed information
-			if err := app.getConfigSettings(os.Args[2]); err != nil {
-				log.Fatal(err)
-			}
-			generateURLAndListenForServerResponse(app)
-		} else {
-			_ = loginCommmand.Parse(os.Args[2:])
-			if loginCommmand.Parsed() {
-				if kubeloginServerBaseURL == "" {
-					log.Fatal("--server-url must be set!")
-				}
-				app.kubectlUser = userFlag
-				app.kubeloginServer = kubeloginServerBaseURL
-				generateURLAndListenForServerResponse(app)
-			}
+
+	// Parse kingpin args
+	thisCommand := kingpin.MustParse(klogin.Parse(os.Args[1:]))
+
+	switch thisCommand {
+	case loginCMD.FullCommand():
+
+		if aliasName == "" && kubeloginServerBaseURL == nil {
+			klogin.FatalUsage("Either --server-url or a configured alias must be provided")
 		}
-	case "config":
-		_ = configCommand.Parse(os.Args[2:])
-		if configCommand.Parsed() {
-			if kubeloginServerBaseURL == "" {
-				log.Fatal("--server-url must be set!")
-			}
-			verifiedServerURL, err := url.ParseRequestURI(kubeloginServerBaseURL)
-			if err != nil {
-				log.Fatalf("Invalid URL given: %v | Err: %v", kubeloginServerBaseURL, err)
+
+		// If the have provided a URL
+		if kubeloginServerBaseURL != nil {
+			log.Printf("userFlag has %s", userFlag)
+			// Ensure that they provided a user as well.
+			if userFlag == "" {
+				klogin.FatalUsage("--kubectl-user must be provided when using --server-url with login")
 			}
 
-			if err := app.configureFile(aliasFlag, verifiedServerURL, userFlag); err != nil {
-				log.Fatal(err)
-			}
-			os.Exit(0)
+			// If so use both of those values.
+			app.kubectlUser = userFlag
+			app.kubeloginServer = kubeloginServerBaseURL.String()
 		}
-	default:
-		fmt.Println(usageMessage)
-		os.Exit(1)
+
+		// Otherwise they have provided an alias so we will fetch user and URL from the config.
+		err := app.getConfigSettings(aliasName)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		generateURLAndListenForServerResponse(app)
+	case configCMD.FullCommand():
+		// We no longer need to verify the URL since kingpin will be doing it for us.
+		//verifiedServerURL, err := url.ParseRequestURI(kubeloginServerBaseURL)
+		if err := app.configureFile(aliasName, kubeloginServerBaseURL, userFlag); err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	case configViewCMD.FullCommand():
+		app.printKubeloginConfig()
 	}
 }

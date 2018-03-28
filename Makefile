@@ -149,6 +149,11 @@ $(BUILD)/cli/kubelogin-cli-$(CURRENT_TAG)-%: cmd/cli/*.go | $(BUILD)/cli
 	  -e GOOS=$* \
 	  golang:$(GOLANG_TOOLCHAIN_VERSION) \
 	    go build -v -o /go/bin/$(@F) \
+#	    I _believe_ this will add a version to the application but I have to find out if this is the correct syntaxi whithin make.
+#		Once that's good we should add version internally to the server as well.
+#		And there should be some process for updating the version.
+#		This all assumes CURRENT_TAG is what we should be using at all.
+	      -ldflags "-X main.version=$(CURRENT_TAG)" \
 	      $(GITHUB_REPO_HOST_AND_PATH)/cmd/cli/ \
 
 .PHONY: test_app
