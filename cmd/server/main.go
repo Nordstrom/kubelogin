@@ -109,7 +109,7 @@ func (app *app) handleCLILogin(writer http.ResponseWriter, request *http.Request
 		http.Error(writer, "No return port in URL", http.StatusBadRequest)
 		return
 	}
-	var scopes = []string{"openid", app.authClient.groupsClaim, app.authClient.userClaim}
+	var scopes = []string{app.authClient.groupsClaim, app.authClient.userClaim}
 	authCodeURL := app.authClient.getOAuth2Config(scopes).AuthCodeURL(portState)
 
 	http.Redirect(writer, request, authCodeURL, http.StatusSeeOther)
