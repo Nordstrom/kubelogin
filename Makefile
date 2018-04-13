@@ -21,12 +21,14 @@ GOLANG_TOOLCHAIN_VERSION := 1.9.1
 image/push: image/build
 	docker push $(IMAGE_NAME):$(CURRENT_TAG)
 
+binaries/build: $(BUILD)/cli/mac/kubelogin $(BUILD)/cli/linux/kubelogin $(BUILD)/cli/windows/kubelogin.exe $(BUILD)/server/linux/kubelogin-server
+
 # image/build: $(BUILD)/cli/mac/kubelogin-cli-$(CURRENT_TAG)-darwin.tar.gz
 # image/build: $(BUILD)/cli/linux/kubelogin-cli-$(CURRENT_TAG)-linux.tar.gz
 # image/build: $(BUILD)/cli/windows/kubelogin-cli-$(CURRENT_TAG)-windows-$(CURRENT_TAG).zip
 # image/build: $(BUILD)/server/linux/kubelogin-server-$(CURRENT_TAG)-linux
 image/build: $(BUILD)/Dockerfile release/github/publish
-	docker build --tag $(IMAGE_NAME):$(CURRENT_TAG) $(<D)
+	docker build --build-arg CURRENT_TAG=$(CURRENT_TAG) --tag $(IMAGE_NAME):$(CURRENT_TAG) $(<D)
 
 release/github/draft: release/tag/local release/tag/push release/github/draft/create release/assets $(BUILD)/github-release-$(CURRENT_TAG)-id
 	@echo "\n\nPlease inspect the release and run make release/github/publish if it looks good"
