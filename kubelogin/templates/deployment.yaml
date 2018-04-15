@@ -51,6 +51,8 @@ spec:
           value: "{{required "A valid .Values.redis.address entry required!" .Values.redis.address}}"
         - name: REDIS_TTL
           value: "{{ .Values.redis.ttl}}"
+        - name: TOKEN_TYPE
+          value: "{{ .Values.kubelogin.oidcTokenType}}"
         - name: CLIENT_ID
           valueFrom:
             secretKeyRef:
