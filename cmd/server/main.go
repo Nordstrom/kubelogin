@@ -142,7 +142,7 @@ func (authClient *oidcClient) initiateAuthorization(requestContext context.Conte
 	}
 
 	fieldName := getEnvOrDefault("TOKEN_TYPE", idTokenField)
-	fmt.Printf("Using [%s] as the JWT", fieldName)
+	log.Printf("Using [%s] as the JWT", fieldName)
 
 	rawIDToken, exists := token.Extra(fieldName).(string)
 	if !exists {
