@@ -41,13 +41,14 @@ type oidcClient struct {
 }
 
 const (
-	idTokenField  = "id_token"
-	portField     = "port"
-	stateField    = "state"
-	groupsField   = "groups"
-	usernameField = "username"
-	authCodeField = "code"
-	tokenField    = "token"
+	idTokenField     = "id_token"
+	accessTokenField = "access_token"
+	portField        = "port"
+	stateField       = "state"
+	groupsField      = "groups"
+	usernameField    = "username"
+	authCodeField    = "code"
+	tokenField       = "token"
 )
 
 var (
@@ -77,6 +78,14 @@ var (
 	},
 		[]string{"method"})
 )
+
+func getEnvOrDefault(envVar, defaultVal string) string {
+	val := defaultVal
+	if os.Getenv(envVar) != "" {
+		val = os.Getenv(envVar)
+	}
+	return val
+}
 
 // the config for oauth2, scopes contain info we want back from the auth server
 func (authClient *oidcClient) getOAuth2Config(scopes []string) *oauth2.Config {
@@ -132,10 +141,14 @@ func (authClient *oidcClient) initiateAuthorization(requestContext context.Conte
 		return "", err
 	}
 
-	rawIDToken, ok := token.Extra(idTokenField).(string)
-	if !ok {
-		log.Print("Failed to get the id_token field")
-		return "", err
+	fieldName := getEnvOrDefault("TOKEN_TYPE", idTokenField)
+	log.Printf("Using [%s] as the JWT", fieldName)
+
+	rawIDToken, exists := token.Extra(fieldName).(string)
+	if !exists {
+		errMsg := fmt.Sprintf("field [%s] not found in token", fieldName)
+		log.Printf(errMsg)
+		return "", fmt.Errorf(errMsg)
 	}
 
 	return rawIDToken, nil
@@ -345,6 +358,7 @@ func main() {
 	if os.Getenv("HTTPS_KEY_PATH") == "" {
 		log.Fatal("HTTPS_KEY_PATH not set!")
 	}
+
 	ctx := oidc.ClientContext(context.Background(), http.DefaultClient)
 	provider, err := oidc.NewProvider(ctx, os.Getenv("OIDC_PROVIDER_URL"))
 	if err != nil {
