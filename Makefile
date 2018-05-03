@@ -8,7 +8,7 @@ GITHUB_REPO_HOST_AND_PATH := github.com/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)
 IMAGE_NAME := quay.io/nordstrom/kubelogin
 BUILD := build
 CURRENT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
-CURRENT_TAG := v0.0.6
+CURRENT_TAG := v0.0.6b
 GOLANG_TOOLCHAIN_VERSION := 1.9.1
 
 .PHONY: image/build image/push
