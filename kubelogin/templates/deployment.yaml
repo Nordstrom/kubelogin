@@ -19,8 +19,10 @@ spec:
     metadata:
       labels:
         app: {{ template "kubelogin.fullname" . }}
-      annotations: 
-        datalens.nordstrom.com/log-stream-name: {{.Values.kubelogin.datalens-annotations}}
+    {{- if .Values.kubelogin.pod.annotations }}
+      annotations:
+    {{ toYaml .Values.kubelogin.pod.annotations | indent 4 }}
+{{- end }}
     spec:
       volumes:
         - name: tls-secret
