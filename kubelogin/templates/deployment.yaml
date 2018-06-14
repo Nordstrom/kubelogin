@@ -22,7 +22,7 @@ spec:
     {{- if .Values.kubelogin.pod.annotations }}
       annotations:
     {{ toYaml .Values.kubelogin.pod.annotations | indent 4 }}
-{{- end }}
+    {{- end }}
     spec:
       volumes:
         - name: tls-secret
