@@ -19,6 +19,10 @@ spec:
     metadata:
       labels:
         app: {{ template "kubelogin.fullname" . }}
+{{- if .Values.kubelogin.pod.annotations }}
+      annotations:
+{{ toYaml .Values.kubelogin.pod.annotations | indent 8 }}
+{{- end }}
     spec:
       volumes:
         - name: tls-secret
