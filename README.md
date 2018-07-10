@@ -1,6 +1,7 @@
 # kubelogin
 
-Repo for kubelogin Server and CLI.
+Makes OIDC authentication to Kubernetes easier by writing tokens into the kubectl
+config file.
 
 # CLI
 
@@ -23,7 +24,8 @@ How to use these verbs:
 ## Pre-Deploy Action & Configuration
 
 1. Download binary file from the server and move it into your bin directory.
-Speak with your friendly neighborhood Kubernetes team to get the link :)
+Download from Releases here or speak with your friendly neighborhood Kubernetes 
+team to get the link :)
 
 ## Post-Deploy Action & Configuration
 
