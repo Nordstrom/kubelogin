@@ -50,16 +50,16 @@ type k8User struct {
 }
 
 var (
-	aliasName              string
-	userFlag               string
-	kubeloginServerBaseURL *url.URL
-	doneChannel            chan bool
-
+	aliasName				string
+	userFlag				string
+	kubeloginServerBaseURL	*url.URL
+	doneChannel				chan bool
+	kubeloginConfig			string
+	kubectlConfig			string
 	version  string
 )
 
-// Kingpin variables
-// Some trickery which makes things like --server-url required for config, optional for login but not for version or get-config. Based on this https://github.com/alecthomas/kingpin/issues/36
+// Kingpin setup
 func loginOrConfigureOptions(cmd *kingpin.CmdClause) {
 	switch cmd.FullCommand() {
 	case loginCMD.FullCommand():
@@ -73,19 +73,48 @@ func loginOrConfigureOptions(cmd *kingpin.CmdClause) {
 	}
 }
 
+// Kingpin variables sets up sub commands and global arguments.
 var (
+	// Creates the top level context for all commands flags and arguments
 	klogin      		= kingpin.New("kubelogin", "Communicate with a kubelogin server (https://github.com/Nordstrom/kubelogin) and sets the token field of the kubectl config file. The kubernetes API server will use this token for OIDC authentication.")
 
+	// Create some sub commands
 	loginCMD			= klogin.Command("login", "Login through a kubelogin server.")
 	configCMD	    	= klogin.Command("config", "Create a profile to a kubelogin server.")
 	configViewCMD		= klogin.Command("get-config", "View the current kubelogin config.")
+
+	// Global flags
+	//TODO: Move this to a different file name. But we need to read the old one if it's there and create the new one so folks don't loose their existing kubelogin settings after an upgrade.
+
 )
 
+// Some trickery which makes things like --server-url required for config, optional for login but not for version or get-config. Based on this https://github.com/alecthomas/kingpin/issues/36
+// We are doing this in a function here because we want to use the same variable (I.E. aliasName) with slightly different settings (required for config but not for login.)
+// Initialize some kingpin specific settings.
 func init() {
+	// Set the application version number
 	klogin.Version(version)
+	// Allow -h as well as --help
 	klogin.HelpFlag.Short('h')
-	loginOrConfigureOptions(loginCMD)
-	loginOrConfigureOptions(configCMD)
+
+	// We have to define these flags separately because they are required for some commands but not others.
+	loginCMD.Flag("server-url", "The kubelogin server to connect to. ex: https://kubelogin.example.com").Short('s').URLVar(&kubeloginServerBaseURL)
+	loginCMD.Flag("kubectl-user", "A user in your kubectl config to use for the connection.").Short('u').StringVar(&userFlag)
+	loginCMD.Arg("alias", "An alias to a kubelogin server:kubectl pair.").StringVar(&aliasName)
+
+	configCMD.Flag("server-url", "The kubelogin server to connect to. ex: https://kubelogin.example.com").Short('s').Required().URLVar(&kubeloginServerBaseURL)
+	configCMD.Flag("kubectl-user", "A user in your kubectl config to use for the connection.").Short('u').Required().StringVar(&userFlag)
+	configCMD.Flag("alias", "The alias to use when saving a connection.").Short('a').Required().StringVar(&aliasName)
+
+	// Find the home directory of the current user
+	user, err := user.Current()
+	if err != nil {
+		log.Fatalf("Could not determine current user of this system. Err: %v", err)
+	}
+
+	klogin.Flag("config-file", "The klogin config file to read from or write to. Default location is $HOME/.kubeloginrc.yaml. Can also be specified by setting the environment variable KUBELOGIN_CONF").Envar("KUBELOGIN_CONF").Default(path.Join(user.HomeDir, "/.kubeloginrc.yaml")).StringVar(&kubeloginConfig)
+	klogin.Flag("kubectl-config", "The kubectl config file to write tokens to. Default location is $HOME/.kube/config. Can also be specified by setting the environment variable KUBECTL_CONF").Envar("KUBECTL_CONF").Default(path.Join(user.HomeDir, ".kube", "config")).StringVar(&kubectlConfig)
+
 }
 
 //AliasConfig contains the structure of what's in the config file
@@ -397,16 +426,9 @@ func (app *app) printKubeloginConfig() error {
 func main() {
 	var app app
 
-	//TODO: Allow the current user to be specified as an arg?
-	user, err := user.Current()
-	if err != nil {
-		log.Fatalf("Could not determine current user of this system. Err: %v", err)
-	}
+	app.filenameWithPath = kubeloginConfig
 
-	//TODO: Allow the specification of an alternate kubeloginrc file?
-	app.filenameWithPath = path.Join(user.HomeDir, "/.kubeloginrc.yaml")
-	//TODO: Allow the specification of an alternate kubecctl config file?
-	app.kubectlConfigPath = path.Join(user.HomeDir, ".kube", "config")
+	app.kubectlConfigPath = kubectlConfig
 
 	// Parse kingpin args
 	thisCommand := kingpin.MustParse(klogin.Parse(os.Args[1:]))
@@ -414,13 +436,13 @@ func main() {
 	switch thisCommand {
 	case loginCMD.FullCommand():
 
+		// I wish there was a cleaner way to say that you can provide an alias OR both --kubectl-user and --server-url
 		if aliasName == "" && kubeloginServerBaseURL == nil {
 			klogin.FatalUsage("Either --server-url or a configured alias must be provided")
 		}
 
 		// If the have provided a URL
 		if kubeloginServerBaseURL != nil {
-			log.Printf("userFlag has %s", userFlag)
 			// Ensure that they provided a user as well.
 			if userFlag == "" {
 				klogin.FatalUsage("--kubectl-user must be provided when using --server-url with login")
