@@ -63,22 +63,17 @@ func TestConfigureKubectl(t *testing.T) {
 		userFlag = "auth_user"
 		var app app
 		app.kubectlUser = "test"
+		app.kubectlConfigPath = "testdata.yml"
 		Convey("should return nil upon setting the token correctly", func() {
 			err := app.configureKubectl("hoopla")
 			So(err, ShouldEqual, nil)
-		})
-		Convey("should return an error when running the command with no user defined", func() {
-			app.kubectlUser = ""
-			err := app.configureKubectl("hoopla")
-			So(err, ShouldNotEqual, nil)
 		})
 	})
 }
 
 func TestEditToken(t *testing.T) {
 	Convey("editToken", t, func() {
-		var app app
-		app.kubectlUser = "nonprod_oidc"
+		kubectlUser := "nonprod_oidc"
 		token := "fancyToken"
 		Convey("should return nil upon setting the token correctly", func() {
 			kyaml, err := constructYaml()
@@ -86,8 +81,8 @@ func TestEditToken(t *testing.T) {
 				t.Error(err)
 			}
 			var u k8User
-			y := editToken(kyaml, app, token)
-			ok, u := findUserStruct(y, app.kubectlUser)
+			y := editToken(kyaml, kubectlUser, token)
+			ok, u := findUserStruct(y, kubectlUser)
 			if !ok {
 				u.User["token"] = ""
 			}
@@ -99,9 +94,9 @@ func TestEditToken(t *testing.T) {
 				t.Error(err)
 			}
 			var u k8User
-			app.kubectlUser = "doesNotExist"
-			y := editToken(kyaml, app, token)
-			ok, u := findUserStruct(y, app.kubectlUser)
+			kubectlUser = "doesNotExist"
+			y := editToken(kyaml, kubectlUser, token)
+			ok, u := findUserStruct(y, kubectlUser)
 			if !ok {
 				u.User["token"] = ""
 			}

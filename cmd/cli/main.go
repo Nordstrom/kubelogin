@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -65,7 +67,11 @@ var (
     kubelogin config --alias=example --server-url=https://kubelogin.example.com --kubectl-user=example_oidc
     
   Use an alias:
-    kubelogin login example`
+    kubelogin login example
+
+	Check a token expiry against the current time. This exits with 1 if the token is stale, 0 if it is fresh.
+    kubelogin check example
+    kubelogin check --server-url=https://kubelogin.example.com --kubectl-user=user`
 )
 
 //AliasConfig contains the structure of what's in the config file
@@ -133,11 +139,11 @@ func (app *app) tokenHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Pure function to test adding/editing token to kubectl config
-func editToken(k kubeYAML, a app, t string) kubeYAML {
+func editToken(k kubeYAML, username string, t string) kubeYAML {
 	found := false
 	// Look for existing users which match
 	for key, v := range k.Users {
-		if a.kubectlUser == v.Name {
+		if username == v.Name {
 			// We only care about a token entry, bypass the issues with client certs
 			v.User["token"] = t
 			k.Users[key] = v
@@ -147,7 +153,7 @@ func editToken(k kubeYAML, a app, t string) kubeYAML {
 	// We didn't find the user. Time to create one.
 	if !found {
 		var u k8User
-		u.Name = a.kubectlUser
+		u.Name = username
 		m := make(map[string]interface{})
 		m["token"] = t
 		u.User = m
@@ -156,34 +162,41 @@ func editToken(k kubeYAML, a app, t string) kubeYAML {
 	return k
 }
 
-func (app *app) configureKubectl(jwt string) error {
-	// Avoid guessing at appropriate file mode later
-	fi, ferr := os.Stat(app.kubectlConfigPath)
-	if ferr != nil {
-		log.Fatalf("could not stat kube config: %v", ferr)
-	}
-
+// Parses the kubectl file pointed to by the app, and returns the file or error.
+func (app *app) readKubectl() (*kubeYAML, error) {
 	kc, err := ioutil.ReadFile(app.kubectlConfigPath)
 	if err != nil {
-		log.Fatalf("could not read kube config file: %v", err)
-
+		return nil, fmt.Errorf("could not read kube config file: %v", err)
 	}
 
 	var ky kubeYAML
 	err = yaml.Unmarshal(kc, &ky)
 	if err != nil {
-		log.Fatalf("could not unmarshal kube config: %v", err)
+		return nil, fmt.Errorf("could not unmarshal kube config: %v", err)
+	}
+	return &ky, nil
+}
 
+func (app *app) configureKubectl(jwt string) error {
+	ky, err := app.readKubectl()
+	if err != nil {
+		log.Fatalf("%v", err)
 	}
 
 	// Edit or add user in pure function (for testing purposes)
-	uy := editToken(ky, *app, jwt)
+	uy := editToken(*ky, app.kubectlUser, jwt)
 
 	out, e := yaml.Marshal(&uy)
 	if e != nil {
 		log.Fatalf("could not write kube config: %v", e)
-
 	}
+
+	// Avoid guessing at appropriate file mode later
+	fi, err := os.Stat(app.kubectlConfigPath)
+	if err != nil {
+		log.Fatalf("could not stat kube config: %v", err)
+	}
+
 	return ioutil.WriteFile(app.kubectlConfigPath, out, fi.Mode())
 }
 
@@ -252,6 +265,7 @@ func setFlags(command *flag.FlagSet, loginCmd bool) {
 	command.StringVar(&userFlag, "kubectl-user", "kubelogin_user", "in kubectl config, username used to store credentials")
 	command.StringVar(&kubeloginServerBaseURL, "server-url", "", "base URL of the kubelogin server, ex: https://kubelogin.example.com")
 }
+
 func (app *app) getConfigSettings(alias string) error {
 	yamlFile, err := ioutil.ReadFile(app.filenameWithPath)
 	if err != nil {
@@ -264,7 +278,7 @@ func (app *app) getConfigSettings(alias string) error {
 
 	aliasConfig, ok := config.aliasSearch(alias)
 	if !ok {
-		return errors.New("Could not find specified alias, check spelling or use the config verb to create an alias")
+		return fmt.Errorf("Could not find the alias '%s', in config file %s, check spelling or use the 'config' verb to create an alias", alias, app.filenameWithPath)
 	}
 	app.kubectlUser = aliasConfig.KubectlUser
 	app.kubeloginServer = aliasConfig.BaseURL
@@ -360,41 +374,97 @@ func (app *app) configureFile(kubeloginrcAlias string, loginServerURL *url.URL, 
 	return config.updateAlias(foundAliasConfig, loginServerURL, app.filenameWithPath) // Either error or nil value
 }
 
+// Returns true if the token in the kube config section pointed to by the app is valid.
+func (app *app) checkTokenForFreshness() (bool, error) {
+	yaml, err := app.readKubectl()
+	if err != nil {
+		return false, err
+	}
+
+	var jwt string
+	for _, k8User := range yaml.Users {
+		if k8User.Name == app.kubectlUser {
+			var ok bool
+			jwt, ok = k8User.User["token"].(string)
+			if !ok {
+				return false, fmt.Errorf("User %s has a non-string token; could not parse", app.kubectlUser)
+			}
+		}
+	}
+	if jwt == "" {
+		return false, fmt.Errorf("User %s not found", app.kubectlUser)
+	}
+	// JWTs are dot-separated base64-encoded JSON payloads. We're only checking the expiry time.
+	// See https://en.wikipedia.org/wiki/JSON_Web_Token for details.
+	splitJwt := strings.Split(jwt, ".")
+	if len(splitJwt) < 2 {
+		return false, fmt.Errorf("JWT for %s not in proper format", app.kubectlUser)
+	}
+	decodedPayload, err := base64.RawStdEncoding.DecodeString(splitJwt[1])
+	if err != nil {
+		return false, err
+	}
+	var jsonPayload map[string]interface{}
+	err = json.Unmarshal(decodedPayload, &jsonPayload)
+	if err != nil {
+		return false, err
+	}
+	expiryTimestampFloat, ok := jsonPayload["exp"].(float64)
+	if !ok {
+		return false, fmt.Errorf("JWT value %v not a number", jsonPayload["exp"])
+	}
+	now := time.Now()
+	expiry := time.Unix(int64(expiryTimestampFloat), 0)
+
+	return expiry.After(now), nil
+}
+
 func main() {
 	var app app
-	loginCommmand := flag.NewFlagSet("login", flag.ExitOnError)
-	setFlags(loginCommmand, true)
+	loginCommand := flag.NewFlagSet("login", flag.ExitOnError)
+	setFlags(loginCommand, true)
 	configCommand := flag.NewFlagSet("config", flag.ExitOnError)
 	setFlags(configCommand, false)
+	checkCommand := flag.NewFlagSet("check", flag.ExitOnError)
+	setFlags(checkCommand, false)
 	user, err := user.Current()
 	if err != nil {
 		log.Fatalf("Could not determine current user of this system. Err: %v", err)
 	}
 	app.filenameWithPath = path.Join(user.HomeDir, "/.kubeloginrc.yaml")
 	app.kubectlConfigPath = path.Join(user.HomeDir, ".kube", "config")
+
 	if len(os.Args) < 3 {
 		fmt.Println(usageMessage)
 		os.Exit(1)
 	}
-	switch os.Args[1] {
-	case "login":
-		if !strings.HasPrefix(os.Args[2], "--") {
-			//use alias to extract needed information
-			if err := app.getConfigSettings(os.Args[2]); err != nil {
+
+	// Sets app.kubectlUser and app.kubeloginServer based on the commandline args. This is used for
+	// login & check commands.
+	setLoginInfo := func(command *flag.FlagSet) {
+		err = command.Parse(os.Args[2:])
+		if err != nil {
+			log.Fatal(err)
+		}
+		// If the user provides an alias, use that; else, use the flag values.
+		if command.NArg() > 0 {
+			// Take user & server from the config file.
+			if err := app.getConfigSettings(command.Arg(0)); err != nil {
 				log.Fatal(err)
 			}
-			generateURLAndListenForServerResponse(app)
 		} else {
-			_ = loginCommmand.Parse(os.Args[2:])
-			if loginCommmand.Parsed() {
-				if kubeloginServerBaseURL == "" {
-					log.Fatal("--server-url must be set!")
-				}
-				app.kubectlUser = userFlag
-				app.kubeloginServer = kubeloginServerBaseURL
-				generateURLAndListenForServerResponse(app)
+			if kubeloginServerBaseURL == "" {
+				log.Fatal("--server-url must be set!")
 			}
+			app.kubectlUser = userFlag
+			app.kubeloginServer = kubeloginServerBaseURL
 		}
+	}
+
+	switch os.Args[1] {
+	case "login":
+		setLoginInfo(loginCommand)
+		generateURLAndListenForServerResponse(app)
 	case "config":
 		_ = configCommand.Parse(os.Args[2:])
 		if configCommand.Parsed() {
@@ -410,6 +480,17 @@ func main() {
 				log.Fatal(err)
 			}
 			os.Exit(0)
+		}
+	case "check":
+		setLoginInfo(checkCommand)
+		isFresh, err := app.checkTokenForFreshness()
+		if err != nil {
+			log.Fatalf("Error reading token: %v", err)
+		}
+		if isFresh {
+			os.Exit(0)
+		} else {
+			os.Exit(1)
 		}
 	default:
 		fmt.Println(usageMessage)
