@@ -1,0 +1,119 @@
+# github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a
+## explicit
+github.com/beorn7/perks/quantile
+# github.com/coreos/go-oidc v0.0.0-20170616013905-d68c0e2fef59
+## explicit
+github.com/coreos/go-oidc
+# github.com/go-redis/redis v6.5.7-0.20170804115557-7a034e160967+incompatible
+## explicit
+github.com/go-redis/redis
+github.com/go-redis/redis/internal
+github.com/go-redis/redis/internal/consistenthash
+github.com/go-redis/redis/internal/hashtag
+github.com/go-redis/redis/internal/pool
+github.com/go-redis/redis/internal/proto
+# github.com/golang/protobuf v1.4.2
+github.com/golang/protobuf/proto
+# github.com/gopherjs/gopherjs v0.0.0-20170609002610-dc374d327045
+## explicit
+github.com/gopherjs/gopherjs/js
+# github.com/jtolds/gls v4.2.1+incompatible
+## explicit
+github.com/jtolds/gls
+# github.com/matttproud/golang_protobuf_extensions v1.0.1
+## explicit
+github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/onsi/ginkgo v1.15.0
+## explicit
+# github.com/onsi/gomega v1.10.5
+## explicit
+# github.com/pkg/errors v0.8.1-0.20170505043639-c605e284fe17
+## explicit
+github.com/pkg/errors
+# github.com/pquerna/cachecontrol v0.0.0-20170706045224-5475d973ea70
+## explicit
+github.com/pquerna/cachecontrol
+github.com/pquerna/cachecontrol/cacheobject
+# github.com/prometheus/client_golang v0.8.1-0.20170724081313-94ff84a9a6eb
+## explicit
+github.com/prometheus/client_golang/prometheus
+# github.com/prometheus/client_model v0.0.0-20170216185247-6f3806018612
+## explicit
+github.com/prometheus/client_model/go
+# github.com/prometheus/common v0.0.0-20170731114204-61f87aac8082
+## explicit
+github.com/prometheus/common/expfmt
+github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
+github.com/prometheus/common/model
+# github.com/prometheus/procfs v0.0.0-20170703101242-e645f4e5aaa8
+## explicit
+github.com/prometheus/procfs
+github.com/prometheus/procfs/xfs
+# github.com/smartystreets/assertions v0.0.0-20170607222757-4ea54c1f28ad
+## explicit
+github.com/smartystreets/assertions
+github.com/smartystreets/assertions/internal/go-render/render
+github.com/smartystreets/assertions/internal/oglematchers
+# github.com/smartystreets/goconvey v1.6.3
+## explicit
+github.com/smartystreets/goconvey/convey
+github.com/smartystreets/goconvey/convey/gotest
+github.com/smartystreets/goconvey/convey/reporting
+# github.com/smartystreets/gunit v1.4.2
+## explicit
+# github.com/stretchr/testify v1.7.0
+## explicit
+# golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
+golang.org/x/net/context
+golang.org/x/net/context/ctxhttp
+# golang.org/x/oauth2 v0.0.0-20170629190718-cce311a261e6
+## explicit
+golang.org/x/oauth2
+golang.org/x/oauth2/internal
+# google.golang.org/appengine v1.6.7
+## explicit
+google.golang.org/appengine/internal
+google.golang.org/appengine/internal/base
+google.golang.org/appengine/internal/datastore
+google.golang.org/appengine/internal/log
+google.golang.org/appengine/internal/remote_api
+google.golang.org/appengine/internal/urlfetch
+google.golang.org/appengine/urlfetch
+# google.golang.org/protobuf v1.23.0
+google.golang.org/protobuf/encoding/prototext
+google.golang.org/protobuf/encoding/protowire
+google.golang.org/protobuf/internal/descfmt
+google.golang.org/protobuf/internal/descopts
+google.golang.org/protobuf/internal/detrand
+google.golang.org/protobuf/internal/encoding/defval
+google.golang.org/protobuf/internal/encoding/messageset
+google.golang.org/protobuf/internal/encoding/tag
+google.golang.org/protobuf/internal/encoding/text
+google.golang.org/protobuf/internal/errors
+google.golang.org/protobuf/internal/fieldnum
+google.golang.org/protobuf/internal/fieldsort
+google.golang.org/protobuf/internal/filedesc
+google.golang.org/protobuf/internal/filetype
+google.golang.org/protobuf/internal/flags
+google.golang.org/protobuf/internal/genname
+google.golang.org/protobuf/internal/impl
+google.golang.org/protobuf/internal/mapsort
+google.golang.org/protobuf/internal/pragma
+google.golang.org/protobuf/internal/set
+google.golang.org/protobuf/internal/strs
+google.golang.org/protobuf/internal/version
+google.golang.org/protobuf/proto
+google.golang.org/protobuf/reflect/protoreflect
+google.golang.org/protobuf/reflect/protoregistry
+google.golang.org/protobuf/runtime/protoiface
+google.golang.org/protobuf/runtime/protoimpl
+# gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
+## explicit
+# gopkg.in/square/go-jose.v2 v2.1.2
+## explicit
+gopkg.in/square/go-jose.v2
+gopkg.in/square/go-jose.v2/cipher
+gopkg.in/square/go-jose.v2/json
+# gopkg.in/yaml.v2 v2.3.0
+## explicit
+gopkg.in/yaml.v2
