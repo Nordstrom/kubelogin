@@ -8,7 +8,7 @@ GITHUB_REPO_HOST_AND_PATH := github.com/$(GITHUB_REPO_OWNER)/$(GITHUB_REPO_NAME)
 IMAGE_NAME := artifactory.nordstrom.com/docker/app00738/kubelogin
 BUILD := build
 CURRENT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
-CURRENT_TAG := v0.0.7
+CURRENT_TAG := v0.0.8
 GOLANG_TOOLCHAIN_VERSION := 1.17.6
 
 .PHONY: image/build image/push
