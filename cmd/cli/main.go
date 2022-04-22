@@ -246,13 +246,13 @@ func generateURLAndListenForServerResponse(app app) {
 				fmt.Printf("Error opening; please open the URL manually: %s \n", loginURL)
 			}
 		}
-        if runtime.GOOS == "linux" {
-            // On linux, run the `xdg-open` CLI to use the default browser to open the login URL.
-            fmt.Printf("Opening %s...\n", loginURL)
-            err := exec.Command("/usr/bin/xdg-open", loginURL).Run()
-            if err != nil {
-                fmt.Printf("Consider installing 'xdg-open' utility or open the URL manually: %s \n", loginURL)
-            }
+		if runtime.GOOS == "linux" {
+			// On linux, run the `xdg-open` CLI to use the default browser to open the login URL.
+			fmt.Printf("Opening %s...\n", loginURL)
+			err := exec.Command("/usr/bin/xdg-open", loginURL).Run()
+			if err != nil {
+				fmt.Printf("Consider installing 'xdg-open' utility or open the URL manually: %s \n", loginURL)
+			}
 		} else {
 			fmt.Printf("Follow this URL to log into auth provider: %s\n", loginURL)
 		}
